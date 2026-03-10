@@ -28,7 +28,7 @@ func newRepoSetCmd() *cobra.Command {
 		Short: "Clone an overlay repo for the current project",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}
@@ -63,7 +63,7 @@ func newRepoPathCmd() *cobra.Command {
 		Short: "Print the clone path for the current scope",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}
@@ -126,7 +126,7 @@ func newRepoRemoveCmd() *cobra.Command {
 		Short: "Remove the overlay repo clone for the current scope",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}

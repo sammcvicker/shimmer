@@ -16,7 +16,7 @@ func newStatusCmd() *cobra.Command {
 This is purely diagnostic — no files are created or removed.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}

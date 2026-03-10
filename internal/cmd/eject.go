@@ -16,7 +16,7 @@ repo stays intact for future use. Stashed files are discarded.
 After eject, the files are real and visible to git status.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}
