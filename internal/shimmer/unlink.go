@@ -32,6 +32,14 @@ func (s *Shimmer) Unlink() (int, error) {
 
 	target := s.Scope.Target()
 
+	// Collect all rels to batch-check tracked status.
+	rels := make([]string, 0, len(links))
+	for _, link := range links {
+		rel, _ := filepath.Rel(target, link)
+		rels = append(rels, rel)
+	}
+	tracked := s.Scope.TrackedFiles(rels)
+
 	// 2. For each symlink: remove it, clear skip-worktree, clean empty parents.
 	for _, link := range links {
 		rel, _ := filepath.Rel(target, link)
@@ -40,10 +48,11 @@ func (s *Shimmer) Unlink() (int, error) {
 			return 0, fmt.Errorf("removing symlink %s: %w", link, err)
 		}
 
-		// Best-effort: clear skip-worktree (no-op for global scope, may fail
-		// if file was never tracked in local scope).
-		if err := s.Scope.SetSkipWorktree(rel, false); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+		// Only clear skip-worktree for files that are actually tracked.
+		if tracked[rel] {
+			if err := s.Scope.SetSkipWorktree(rel, false); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+			}
 		}
 
 		s.cleanEmptyLinkParents(filepath.Dir(link))
