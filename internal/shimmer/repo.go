@@ -178,15 +178,18 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 		TargetExists: targetExists,
 	}
 
-	// Check linked status
-	if isGlobal {
-		if home, err := os.UserHomeDir(); err == nil {
-			links, _ := ScanSymlinks(home, s.Home)
+	// Check linked status using targeted check (fast for $HOME).
+	if overlayFiles, walkErr := WalkOverlay(clonePath); walkErr == nil {
+		checkTarget := targetPath
+		if isGlobal {
+			if home, err := os.UserHomeDir(); err == nil {
+				checkTarget = home
+			}
+		}
+		if checkTarget != "" && targetExists {
+			links, _ := CheckSymlinks(checkTarget, overlayFiles, s.Home)
 			info.Linked = len(links) > 0
 		}
-	} else if targetExists && targetPath != "" {
-		links, _ := ScanSymlinks(targetPath, s.Home)
-		info.Linked = len(links) > 0
 	}
 
 	return info, nil

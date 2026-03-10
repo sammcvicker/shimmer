@@ -10,7 +10,8 @@ import (
 // It returns ErrNotLinked if no shimmer symlinks exist.
 func (s *Shimmer) Status() (*LinkStatus, error) {
 	// 1. Find shimmer symlinks.
-	links, err := ScanSymlinks(s.Target, s.Home)
+	// Uses clone-based targeted check when possible (fast for global scope).
+	links, err := s.findShimmerLinks()
 	if err != nil {
 		return nil, err
 	}

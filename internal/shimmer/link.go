@@ -19,9 +19,15 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	}
 
 	// 2. Remove stale symlinks from previous link state.
-	existing, err := ScanSymlinks(s.Target, s.Home)
+	existing, err := s.findShimmerLinks()
 	if err != nil {
 		return nil, fmt.Errorf("scanning existing links: %w", err)
+	}
+
+	// 3. Walk overlay to get files to link.
+	overlayFiles, err := WalkOverlay(clonePath)
+	if err != nil {
+		return nil, fmt.Errorf("walking overlay: %w", err)
 	}
 
 	var removed []string
@@ -32,12 +38,6 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		rel, _ := filepath.Rel(s.Target, link)
 		removed = append(removed, rel)
 		s.cleanEmptyLinkParents(filepath.Dir(link))
-	}
-
-	// 3. Walk overlay to get files to link.
-	overlayFiles, err := WalkOverlay(clonePath)
-	if err != nil {
-		return nil, fmt.Errorf("walking overlay: %w", err)
 	}
 
 	// 4. For each file, check if destination exists (and is not a shimmer symlink).
@@ -70,7 +70,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		conflictSet[rel] = c
 	}
 
-	// 5. If conflicts exist and neither skip nor overwrite: return ErrConflicts.
+	// 5. If conflicts and no flags: return ErrConflicts.
 	if len(conflicts) > 0 && !skip && !overwrite {
 		return nil, &ErrConflicts{Conflicts: conflicts}
 	}
@@ -112,8 +112,12 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		result.Linked = append(result.Linked, rel)
 	}
 
-	// 7. Update .git/info/exclude with linked paths (local scope only).
-	if !s.Global {
+	// 7. Update link state: .git/info/exclude (local) or ~/.shimmer/linked (global).
+	if s.Global {
+		if err := s.writeGlobalLinkedPaths(result.Linked); err != nil {
+			return nil, fmt.Errorf("writing global linked paths: %w", err)
+		}
+	} else {
 		if err := s.updateGitExclude(result.Linked); err != nil {
 			return nil, fmt.Errorf("updating .git/info/exclude: %w", err)
 		}

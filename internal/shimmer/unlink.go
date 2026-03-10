@@ -11,7 +11,8 @@ import (
 // It returns the number of symlinks removed. It is a no-op if nothing is linked.
 func (s *Shimmer) Unlink() (int, error) {
 	// 1. Find all shimmer symlinks.
-	links, err := ScanSymlinks(s.Target, s.Home)
+	// Uses clone-based targeted check when possible (fast for global scope).
+	links, err := s.findShimmerLinks()
 	if err != nil {
 		return 0, fmt.Errorf("scanning symlinks: %w", err)
 	}
@@ -37,8 +38,10 @@ func (s *Shimmer) Unlink() (int, error) {
 		return 0, fmt.Errorf("restoring stash: %w", err)
 	}
 
-	// 4. Clear shimmer block from .git/info/exclude (local scope only).
-	if !s.Global {
+	// 4. Clear link state: .git/info/exclude (local) or ~/.shimmer/linked (global).
+	if s.Global {
+		s.writeGlobalLinkedPaths(nil)
+	} else {
 		if err := s.updateGitExclude(nil); err != nil {
 			return 0, fmt.Errorf("clearing .git/info/exclude: %w", err)
 		}
