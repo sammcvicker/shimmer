@@ -57,6 +57,9 @@ func TestParseRepoURL(t *testing.T) {
 		{"https://github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
 		{"https://github.com/siimpl/claude-dhi", "siimpl", "claude-dhi"},
 		{"git@github.com:other-org/claude-configs.git", "other-org", "claude-configs"},
+		{"ssh://git@github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
+		{"ssh://git@github.com/siimpl/claude-dhi", "siimpl", "claude-dhi"},
+		{"ssh://github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.url, func(t *testing.T) {

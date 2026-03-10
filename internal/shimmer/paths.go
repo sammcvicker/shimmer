@@ -22,6 +22,20 @@ func GitRoot(dir string) (string, error) {
 func ParseRepoURL(url string) (owner, name string, err error) {
 	url = strings.TrimSuffix(url, ".git")
 
+	// SSH with protocol: ssh://git@github.com/owner/repo or ssh://github.com/owner/repo
+	if strings.HasPrefix(url, "ssh://") {
+		trimmed := strings.TrimPrefix(url, "ssh://")
+		// Remove user@ if present: git@github.com/owner/repo -> github.com/owner/repo
+		if idx := strings.Index(trimmed, "@"); idx >= 0 {
+			trimmed = trimmed[idx+1:]
+		}
+		segments := strings.Split(strings.TrimRight(trimmed, "/"), "/")
+		if len(segments) < 3 {
+			return "", "", fmt.Errorf("cannot parse owner/repo from SSH URL: %s", url)
+		}
+		return segments[len(segments)-2], segments[len(segments)-1], nil
+	}
+
 	// SSH: git@github.com:owner/repo
 	if strings.Contains(url, ":") && strings.HasPrefix(url, "git@") {
 		parts := strings.SplitN(url, ":", 2)
