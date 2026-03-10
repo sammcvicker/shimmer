@@ -30,7 +30,7 @@ func (s *Shimmer) Status() (*LinkStatus, error) {
 	// 4. Check each symlink's health.
 	var files []FileStatus
 	for _, link := range links {
-		rel, _ := filepath.Rel(s.Target, link)
+		rel, _ := filepath.Rel(s.Scope.Target(), link)
 		target, err := os.Readlink(link)
 		if err != nil {
 			files = append(files, FileStatus{Path: rel, OK: false, Reason: "unreadable"})
@@ -77,7 +77,7 @@ func (s *Shimmer) repoInfoFromSymlink(linkPath string) (*RepoInfo, error) {
 		parent := filepath.Dir(cloneRoot)
 		if parent == cloneRoot {
 			// Reached filesystem root without finding .git
-			return nil, &ErrNoRepo{Target: s.Target, Global: s.Global}
+			return nil, &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 		}
 		cloneRoot = parent
 	}
@@ -90,7 +90,7 @@ func (s *Shimmer) repoInfoFromSymlink(linkPath string) (*RepoInfo, error) {
 	}
 	segments := strings.SplitN(rel, string(os.PathSeparator), 3)
 	if len(segments) < 2 {
-		return nil, &ErrNoRepo{Target: s.Target, Global: s.Global}
+		return nil, &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 	}
 
 	owner, name := segments[0], segments[1]

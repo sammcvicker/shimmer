@@ -57,10 +57,15 @@ func setupShimmerHome(t *testing.T) string {
 // newTestShimmer creates a Shimmer instance wired to test directories.
 func newTestShimmer(t *testing.T, home, target string, global bool) *shimmer.Shimmer {
 	t.Helper()
+	var scope shimmer.Scope
+	if global {
+		scope = shimmer.NewGlobalScope(target, home)
+	} else {
+		scope = shimmer.NewLocalScope(target)
+	}
 	return &shimmer.Shimmer{
-		Home:   home,
-		Global: global,
-		Target: target,
+		Home:  home,
+		Scope: scope,
 	}
 }
 

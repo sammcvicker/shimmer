@@ -14,8 +14,8 @@ import (
 // combines the current overlay file list (from clone) with previously linked
 // paths (from ~/.shimmer/linked) to know exactly which paths to check.
 func (s *Shimmer) findShimmerLinks() ([]string, error) {
-	if !s.Global {
-		return ScanSymlinks(s.Target, s.Home)
+	if !s.Scope.IsGlobal() {
+		return ScanSymlinks(s.Scope.Target(), s.Home)
 	}
 
 	// Global scope: build the set of paths to check.
@@ -31,7 +31,7 @@ func (s *Shimmer) findShimmerLinks() ([]string, error) {
 	}
 
 	// Add previously linked paths (catches stale links from deleted files).
-	for _, p := range s.readGlobalLinkedPaths() {
+	for _, p := range readLinkedPaths(s.Home) {
 		pathSet[p] = true
 	}
 
@@ -43,33 +43,12 @@ func (s *Shimmer) findShimmerLinks() ([]string, error) {
 	for p := range pathSet {
 		paths = append(paths, p)
 	}
-	return CheckSymlinks(s.Target, paths, s.Home)
+	return CheckSymlinks(s.Scope.Target(), paths, s.Home)
 }
 
-// globalLinkedPathsFile returns the path to the state file that records
-// which paths are currently linked for global scope.
-// This is the global equivalent of .git/info/exclude for local scope.
-func (s *Shimmer) globalLinkedPathsFile() string {
-	return filepath.Join(s.Home, "linked")
-}
-
-// writeGlobalLinkedPaths saves the currently linked paths for global scope.
-func (s *Shimmer) writeGlobalLinkedPaths(paths []string) error {
-	if !s.Global {
-		return nil
-	}
-	if len(paths) == 0 {
-		if err := os.Remove(s.globalLinkedPathsFile()); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
-	}
-	return os.WriteFile(s.globalLinkedPathsFile(), []byte(strings.Join(paths, "\n")+"\n"), 0o644)
-}
-
-// readGlobalLinkedPaths reads previously linked paths for global scope.
-func (s *Shimmer) readGlobalLinkedPaths() []string {
-	data, err := os.ReadFile(s.globalLinkedPathsFile())
+// readLinkedPaths reads previously linked paths from the global linked state file.
+func readLinkedPaths(home string) []string {
+	data, err := os.ReadFile(filepath.Join(home, "linked"))
 	if err != nil {
 		return nil
 	}

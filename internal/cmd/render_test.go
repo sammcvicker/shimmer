@@ -14,7 +14,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestRenderError_NoRepo_Local(t *testing.T) {
-	err := renderError(&shimmer.ErrNoRepo{Target: "/home/user/project", Global: false})
+	err := renderError(&shimmer.ErrNoRepo{ScopeLabel: "/home/user/project"})
 	got := err.Error()
 
 	if !strings.Contains(got, "/home/user/project") {
@@ -26,7 +26,7 @@ func TestRenderError_NoRepo_Local(t *testing.T) {
 }
 
 func TestRenderError_NoRepo_Global(t *testing.T) {
-	err := renderError(&shimmer.ErrNoRepo{Target: "/home/user", Global: true})
+	err := renderError(&shimmer.ErrNoRepo{ScopeLabel: "global"})
 	got := err.Error()
 
 	if !strings.Contains(got, "global") {

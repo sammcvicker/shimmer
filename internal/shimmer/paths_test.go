@@ -78,16 +78,18 @@ func TestClonePath(t *testing.T) {
 	home := "/home/test/.shimmer"
 
 	// Local scope
-	got := shimmer.ClonePath(home, "siimpl", "claude-dhi", "/Users/sam/projects/dhi", false)
+	local := shimmer.NewLocalScope("/Users/sam/projects/dhi")
+	got := local.ClonePath(home, "siimpl", "claude-dhi")
 	want := "/home/test/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi"
 	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("local: got %q, want %q", got, want)
 	}
 
 	// Global scope
-	got = shimmer.ClonePath(home, "siimpl", "claude-global", "", true)
+	global := shimmer.NewGlobalScope("/Users/sam", home)
+	got = global.ClonePath(home, "siimpl", "claude-global")
 	want = "/home/test/.shimmer/repos/siimpl/claude-global/_global"
 	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("global: got %q, want %q", got, want)
 	}
 }

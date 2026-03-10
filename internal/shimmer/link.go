@@ -3,7 +3,6 @@ package shimmer
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,12 +29,14 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		return nil, fmt.Errorf("walking overlay: %w", err)
 	}
 
+	target := s.Scope.Target()
+
 	var removed []string
 	for _, link := range existing {
 		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("removing stale link %s: %w", link, err)
 		}
-		rel, _ := filepath.Rel(s.Target, link)
+		rel, _ := filepath.Rel(target, link)
 		removed = append(removed, rel)
 		s.cleanEmptyLinkParents(filepath.Dir(link))
 	}
@@ -45,7 +46,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	var conflictRels []string
 	conflictSet := make(map[string]Conflict)
 	for _, rel := range overlayFiles {
-		dest := filepath.Join(s.Target, rel)
+		dest := filepath.Join(target, rel)
 		info, err := os.Lstat(dest)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -56,11 +57,11 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		// If it's a symlink pointing into our repos dir, it's ours (already removed above).
 		// If it still exists after removal it's something else or a new file.
 		if info.Mode()&os.ModeSymlink != 0 {
-			target, linkErr := os.Readlink(dest)
+			linkTarget, linkErr := os.Readlink(dest)
 			if linkErr == nil {
-				target = absSymlinkTarget(dest, target)
+				linkTarget = absSymlinkTarget(dest, linkTarget)
 				reposDir := filepath.Join(s.Home, "repos")
-				if isSubpath(target, reposDir) {
+				if isSubpath(linkTarget, reposDir) {
 					continue // it's a shimmer link that we just created or will create
 				}
 			}
@@ -69,7 +70,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	}
 
 	// Batch-check which conflicting files are tracked by git (single subprocess).
-	tracked := s.trackedFiles(conflictRels)
+	tracked := s.Scope.TrackedFiles(conflictRels)
 	var conflicts []Conflict
 	for _, rel := range conflictRels {
 		c := Conflict{Path: rel, Tracked: tracked[rel]}
@@ -88,7 +89,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	}
 
 	for _, rel := range overlayFiles {
-		dest := filepath.Join(s.Target, rel)
+		dest := filepath.Join(target, rel)
 		src := filepath.Join(clonePath, rel)
 
 		if c, ok := conflictSet[rel]; ok {
@@ -102,7 +103,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 				}
 				result.Stashed = append(result.Stashed, rel)
 				if c.Tracked {
-					if err := s.setSkipWorktree(rel, true); err != nil {
+					if err := s.Scope.SetSkipWorktree(rel, true); err != nil {
 						fmt.Fprintf(os.Stderr, "warning: could not set skip-worktree for %s: %v\n", rel, err)
 					}
 				}
@@ -121,15 +122,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		result.Linked = append(result.Linked, rel)
 	}
 
-	// 7. Update link state: .git/info/exclude (local) or ~/.shimmer/linked (global).
-	if s.Global {
-		if err := s.writeGlobalLinkedPaths(result.Linked); err != nil {
-			return nil, fmt.Errorf("writing global linked paths: %w", err)
-		}
-	} else {
-		if err := s.updateGitExclude(result.Linked); err != nil {
-			return nil, fmt.Errorf("updating .git/info/exclude: %w", err)
-		}
+	// 7. Update link state.
+	if err := s.Scope.SaveLinkState(result.Linked); err != nil {
+		return nil, fmt.Errorf("saving link state: %w", err)
 	}
 
 	// 8. Filter result.Removed to exclude files that were re-linked.
@@ -140,60 +135,16 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 
 // stashFile moves a conflicting file to the stash location.
 func (s *Shimmer) stashFile(rel, src string) error {
-	dest := s.stashPath(rel)
+	dest := filepath.Join(s.Scope.StashDir(), rel)
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
 	return os.Rename(src, dest)
 }
 
-// stashPath computes the stash path for a given relative file path.
-// For local scope: .git/shimmer-stash/<rel>
-// For global scope: ~/.shimmer/stash/<rel>
-func (s *Shimmer) stashPath(rel string) string {
-	if s.Global {
-		return filepath.Join(s.Home, "stash", rel)
-	}
-	return filepath.Join(s.Target, ".git", "shimmer-stash", rel)
-}
-
-// trackedFiles returns the subset of rels that are tracked by git.
-// It issues a single "git ls-files" subprocess for the entire batch.
-func (s *Shimmer) trackedFiles(rels []string) map[string]bool {
-	if s.Global || len(rels) == 0 {
-		return nil
-	}
-	args := append([]string{"-C", s.Target, "ls-files"}, rels...)
-	cmd := exec.Command("git", args...)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil
-	}
-	tracked := make(map[string]bool)
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line != "" {
-			tracked[line] = true
-		}
-	}
-	return tracked
-}
-
-// setSkipWorktree sets or clears the skip-worktree flag for a file.
-func (s *Shimmer) setSkipWorktree(rel string, set bool) error {
-	flag := "--skip-worktree"
-	if !set {
-		flag = "--no-skip-worktree"
-	}
-	cmd := exec.Command("git", "-C", s.Target, "update-index", flag, rel)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("skip-worktree %s: %s: %w", rel, out, err)
-	}
-	return nil
-}
-
 // updateGitExclude writes linked paths to .git/info/exclude in a shimmer-managed block.
-func (s *Shimmer) updateGitExclude(linkedPaths []string) error {
-	excludePath := filepath.Join(s.Target, ".git", "info", "exclude")
+func updateGitExclude(target string, linkedPaths []string) error {
+	excludePath := filepath.Join(target, ".git", "info", "exclude")
 
 	// Ensure the directory exists.
 	if err := os.MkdirAll(filepath.Dir(excludePath), 0o755); err != nil {
@@ -252,7 +203,8 @@ func (s *Shimmer) updateGitExclude(linkedPaths []string) error {
 
 // cleanEmptyLinkParents removes empty directories up to the target root.
 func (s *Shimmer) cleanEmptyLinkParents(dir string) {
-	for dir != s.Target && isSubpath(dir, s.Target) {
+	target := s.Scope.Target()
+	for dir != target && isSubpath(dir, target) {
 		entries, err := os.ReadDir(dir)
 		if err != nil || len(entries) > 0 {
 			break

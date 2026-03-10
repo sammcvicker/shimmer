@@ -27,19 +27,21 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		return nil, &ErrNotLinked{}
 	}
 
+	target := s.Scope.Target()
+
 	// 2. Pre-flight: validate all symlink targets exist before mutating anything.
 	targets := make(map[string]string, len(links)) // link path -> resolved target
 	for _, link := range links {
-		target, err := os.Readlink(link)
+		linkTarget, err := os.Readlink(link)
 		if err != nil {
 			return nil, fmt.Errorf("reading symlink %s: %w", link, err)
 		}
-		target = absSymlinkTarget(link, target)
-		if _, err := os.Stat(target); err != nil {
-			rel, _ := filepath.Rel(s.Target, link)
-			return nil, fmt.Errorf("broken symlink %s: target %s does not exist — fix with shimmer link", rel, target)
+		linkTarget = absSymlinkTarget(link, linkTarget)
+		if _, err := os.Stat(linkTarget); err != nil {
+			rel, _ := filepath.Rel(target, link)
+			return nil, fmt.Errorf("broken symlink %s: target %s does not exist — fix with shimmer link", rel, linkTarget)
 		}
-		targets[link] = target
+		targets[link] = linkTarget
 	}
 
 	// 3. Replace each symlink with a copy of its target (all targets verified).
@@ -51,18 +53,16 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		if err := copyFile(targets[link], link); err != nil {
 			return nil, fmt.Errorf("copying %s: %w", link, err)
 		}
-		rel, _ := filepath.Rel(s.Target, link)
+		rel, _ := filepath.Rel(target, link)
 
-		// Clear skip-worktree so git sees the real file again (local scope only).
-		if !s.Global {
-			_ = s.setSkipWorktree(rel, false)
-		}
+		// Clear skip-worktree so git sees the real file again (no-op for global scope).
+		_ = s.Scope.SetSkipWorktree(rel, false)
 
 		result.Ejected = append(result.Ejected, rel)
 	}
 
 	// 4. Delete the stash.
-	stash := s.stashDir()
+	stash := s.Scope.StashDir()
 	if info, err := os.Stat(stash); err == nil && info.IsDir() {
 		if err := os.RemoveAll(stash); err != nil {
 			return nil, fmt.Errorf("clearing stash: %w", err)
@@ -70,15 +70,9 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		result.StashCleared = true
 	}
 
-	// 5. Clear exclude/linked-paths entries.
-	if s.Global {
-		if err := s.writeGlobalLinkedPaths(nil); err != nil {
-			return nil, fmt.Errorf("clearing global linked paths: %w", err)
-		}
-	} else {
-		if err := s.updateGitExclude(nil); err != nil {
-			return nil, fmt.Errorf("clearing .git/info/exclude: %w", err)
-		}
+	// 5. Clear link state.
+	if err := s.Scope.SaveLinkState(nil); err != nil {
+		return nil, fmt.Errorf("clearing link state: %w", err)
 	}
 
 	return result, nil

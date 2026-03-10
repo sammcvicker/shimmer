@@ -21,9 +21,8 @@ func newShimmerFromFlags() (*shimmer.Shimmer, error) {
 			return nil, fmt.Errorf("getting home directory: %w", err)
 		}
 		return &shimmer.Shimmer{
-			Home:   home,
-			Global: true,
-			Target: userHome,
+			Home:  home,
+			Scope: shimmer.NewGlobalScope(userHome, home),
 		}, nil
 	}
 
@@ -38,8 +37,7 @@ func newShimmerFromFlags() (*shimmer.Shimmer, error) {
 	}
 
 	return &shimmer.Shimmer{
-		Home:   home,
-		Global: false,
-		Target: root,
+		Home:  home,
+		Scope: shimmer.NewLocalScope(root),
 	}, nil
 }
