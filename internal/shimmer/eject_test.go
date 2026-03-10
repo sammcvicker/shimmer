@@ -46,11 +46,17 @@ func TestEject(t *testing.T) {
 		}
 	}
 
-	content, err := os.ReadFile(filepath.Join(project, "CLAUDE.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(content) != "# Claude Config" {
-		t.Errorf("content = %q, want %q", content, "# Claude Config")
+	// Verify content of both files.
+	for rel, want := range map[string]string{
+		"CLAUDE.md":             "# Claude Config",
+		".claude/settings.json": `{"key": "value"}`,
+	} {
+		got, err := os.ReadFile(filepath.Join(project, rel))
+		if err != nil {
+			t.Fatalf("reading %s: %v", rel, err)
+		}
+		if string(got) != want {
+			t.Errorf("%s content = %q, want %q", rel, got, want)
+		}
 	}
 }
