@@ -28,6 +28,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newUnlinkCmd())
 	cmd.AddCommand(newStatusCmd())
 	cmd.AddCommand(newGitCmd())
+	cmd.AddCommand(newEjectCmd())
 
 	return cmd
 }
