@@ -78,6 +78,7 @@ or --overwrite to stash them and create the symlink.`,
 
 	cmd.Flags().BoolVar(&skipFlag, "skip", false, "skip conflicting files")
 	cmd.Flags().BoolVar(&overwriteFlag, "overwrite", false, "stash and replace conflicting files")
+	cmd.MarkFlagsMutuallyExclusive("skip", "overwrite")
 
 	return cmd
 }
