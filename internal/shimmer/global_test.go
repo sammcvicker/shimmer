@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/siimpl/shimmer/internal/shimmer"
 )
 
 func TestGlobalLinkUnlink(t *testing.T) {
@@ -15,11 +13,7 @@ func TestGlobalLinkUnlink(t *testing.T) {
 		".claude/CLAUDE.md": "# Global Config",
 	})
 
-	s := &shimmer.Shimmer{
-		Home:   shimmerHome,
-		Global: true,
-		Target: fakeHome,
-	}
+	s := newTestShimmer(t, shimmerHome, fakeHome, true)
 
 	if _, err := s.RepoSet(overlayURL); err != nil {
 		t.Fatal(err)
@@ -65,11 +59,7 @@ func TestGlobalReconcilesStalLinks(t *testing.T) {
 		"file-b.txt": "b",
 	})
 
-	s := &shimmer.Shimmer{
-		Home:   shimmerHome,
-		Global: true,
-		Target: fakeHome,
-	}
+	s := newTestShimmer(t, shimmerHome, fakeHome, true)
 
 	if _, err := s.RepoSet(overlayURL); err != nil {
 		t.Fatal(err)
@@ -115,11 +105,7 @@ func TestGlobalOverwriteRestoresStash(t *testing.T) {
 
 	writeFile(t, fakeHome, "config.txt", "original")
 
-	s := &shimmer.Shimmer{
-		Home:   shimmerHome,
-		Global: true,
-		Target: fakeHome,
-	}
+	s := newTestShimmer(t, shimmerHome, fakeHome, true)
 
 	if _, err := s.RepoSet(overlayURL); err != nil {
 		t.Fatal(err)

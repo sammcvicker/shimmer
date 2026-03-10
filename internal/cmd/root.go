@@ -48,11 +48,7 @@ func Execute() error {
 func renderError(err error) error {
 	var noRepo *shimmer.ErrNoRepo
 	if errors.As(err, &noRepo) {
-		scope := noRepo.Target
-		if noRepo.Global {
-			scope = "global"
-		}
-		return fmt.Errorf("no overlay repo set for %s\n\n  shimmer repo set <url>", scope)
+		return fmt.Errorf("no overlay repo set for %s\n\n  shimmer repo set <url>", noRepo.ScopeLabel)
 	}
 
 	var alreadySet *shimmer.ErrRepoAlreadySet

@@ -4,15 +4,11 @@ import "fmt"
 
 // ErrNoRepo means no overlay repo is set for this scope.
 type ErrNoRepo struct {
-	Target string
-	Global bool
+	ScopeLabel string
 }
 
 func (e *ErrNoRepo) Error() string {
-	if e.Global {
-		return "no overlay repo set for global scope"
-	}
-	return fmt.Sprintf("no overlay repo set for %s", e.Target)
+	return fmt.Sprintf("no overlay repo set for %s", e.ScopeLabel)
 }
 
 // ErrConflicts means existing files would be shadowed.

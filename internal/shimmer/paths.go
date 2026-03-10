@@ -72,12 +72,3 @@ func absSymlinkTarget(linkPath, target string) string {
 func isSubpath(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, dir+string(filepath.Separator))
 }
-
-// ClonePath computes the filesystem path where a clone should live.
-func ClonePath(home, owner, repo, targetPath string, global bool) string {
-	if global {
-		return filepath.Join(home, "repos", owner, repo, "_global")
-	}
-	rel := strings.TrimPrefix(targetPath, "/")
-	return filepath.Join(home, "repos", owner, repo, rel)
-}

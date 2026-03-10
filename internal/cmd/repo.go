@@ -38,7 +38,7 @@ func newRepoSetCmd() *cobra.Command {
 				if err != nil {
 					return renderError(err)
 				}
-				s.Target = target
+				s.Scope = shimmer.NewLocalScope(target)
 			}
 
 			info, err := s.RepoSet(args[0])
@@ -89,7 +89,7 @@ func newRepoListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s := &shimmer.Shimmer{Home: home}
+			s := &shimmer.Shimmer{Home: home, Scope: shimmer.NewLocalScope("")}
 
 			repos, err := s.RepoList()
 			if err != nil {
@@ -136,7 +136,7 @@ func newRepoRemoveCmd() *cobra.Command {
 				if err != nil {
 					return renderError(err)
 				}
-				s.Target = target
+				s.Scope = shimmer.NewLocalScope(target)
 			}
 
 			if err := s.RepoRemove(); err != nil {

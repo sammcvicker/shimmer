@@ -8,9 +8,8 @@ import (
 
 // Shimmer is the central context for any operation.
 type Shimmer struct {
-	Home   string // ~/.shimmer
-	Global bool   // -g flag
-	Target string // project root (git root) or $HOME
+	Home  string // ~/.shimmer
+	Scope Scope  // local or global dispatch
 }
 
 // DefaultHome returns the default shimmer home directory.

@@ -15,7 +15,7 @@ func (s *Shimmer) RepoSet(url string) (*RepoInfo, error) {
 		return nil, err
 	}
 
-	clonePath := ClonePath(s.Home, owner, name, s.Target, s.Global)
+	clonePath := s.Scope.ClonePath(s.Home, owner, name)
 
 	// Check if already set
 	if _, err := os.Stat(filepath.Join(clonePath, ".git")); err == nil {
@@ -96,7 +96,7 @@ func (s *Shimmer) RepoList() ([]RepoInfo, error) {
 func (s *Shimmer) findClone() (string, error) {
 	reposDir := filepath.Join(s.Home, "repos")
 	if _, err := os.Stat(reposDir); err != nil {
-		return "", &ErrNoRepo{Target: s.Target, Global: s.Global}
+		return "", &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 	}
 
 	var found string
@@ -118,16 +118,9 @@ func (s *Shimmer) findClone() (string, error) {
 			}
 			targetSegment := segments[2]
 
-			if s.Global && targetSegment == "_global" {
+			if s.Scope.MatchClone(targetSegment) {
 				found = cloneDir
 				return filepath.SkipAll
-			}
-			if !s.Global {
-				targetPath := "/" + targetSegment
-				if targetPath == s.Target {
-					found = cloneDir
-					return filepath.SkipAll
-				}
 			}
 			return filepath.SkipDir
 		}
@@ -138,7 +131,7 @@ func (s *Shimmer) findClone() (string, error) {
 		if walkErr != nil {
 			return "", fmt.Errorf("searching repos: %w", walkErr)
 		}
-		return "", &ErrNoRepo{Target: s.Target, Global: s.Global}
+		return "", &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 	}
 	return found, nil
 }
