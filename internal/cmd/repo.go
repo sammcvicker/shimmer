@@ -120,10 +120,7 @@ func newRepoListCmd() *cobra.Command {
 		Short: "List all overlay repo clones",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
-			if err != nil {
-				return renderError(err)
-			}
+			s := &shimmer.Shimmer{Home: shimmer.DefaultHome()}
 
 			repos, err := s.RepoList()
 			if err != nil {
