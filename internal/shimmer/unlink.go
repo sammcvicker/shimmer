@@ -8,12 +8,12 @@ import (
 
 // Unlink removes all shimmer symlinks, restores stashed files, clears
 // skip-worktree flags, and cleans up .git/info/exclude entries.
-// It is a no-op if nothing is linked.
-func (s *Shimmer) Unlink() error {
+// It returns the number of symlinks removed. It is a no-op if nothing is linked.
+func (s *Shimmer) Unlink() (int, error) {
 	// 1. Find all shimmer symlinks.
 	links, err := ScanSymlinks(s.Target, s.Home)
 	if err != nil {
-		return fmt.Errorf("scanning symlinks: %w", err)
+		return 0, fmt.Errorf("scanning symlinks: %w", err)
 	}
 
 	// 2. For each symlink: remove it, clear skip-worktree if local, clean empty parents.
@@ -21,7 +21,7 @@ func (s *Shimmer) Unlink() error {
 		rel, _ := filepath.Rel(s.Target, link)
 
 		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("removing symlink %s: %w", link, err)
+			return 0, fmt.Errorf("removing symlink %s: %w", link, err)
 		}
 
 		if !s.Global {
@@ -34,17 +34,17 @@ func (s *Shimmer) Unlink() error {
 
 	// 3. Restore stashed files.
 	if err := s.restoreStash(); err != nil {
-		return fmt.Errorf("restoring stash: %w", err)
+		return 0, fmt.Errorf("restoring stash: %w", err)
 	}
 
 	// 4. Clear shimmer block from .git/info/exclude (local scope only).
 	if !s.Global {
 		if err := s.updateGitExclude(nil); err != nil {
-			return fmt.Errorf("clearing .git/info/exclude: %w", err)
+			return 0, fmt.Errorf("clearing .git/info/exclude: %w", err)
 		}
 	}
 
-	return nil
+	return len(links), nil
 }
 
 // stashDir returns the base directory for stashed files.

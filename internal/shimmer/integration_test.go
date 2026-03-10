@@ -94,7 +94,7 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// Step 7: unlink
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatal(err)
 	}
 

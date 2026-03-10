@@ -140,6 +140,8 @@ func newRepoListCmd() *cobra.Command {
 				status := ""
 				if !r.TargetExists {
 					status = " (target missing)"
+				} else if r.Linked {
+					status = " (linked)"
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "%s/%s  branch:%s  scope:%s  %s%s\n",
 					r.Owner, r.Name, r.Branch, scope, r.ClonePath, status)

@@ -33,7 +33,7 @@ func TestUnlink(t *testing.T) {
 	}
 
 	// Unlink.
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatalf("Unlink() error: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestUnlinkRestoresStashed(t *testing.T) {
 	}
 
 	// Unlink should restore the stashed file.
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatalf("Unlink() error: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestUnlinkNotLinked(t *testing.T) {
 	s := newTestShimmer(t, home, project, false)
 
 	// Unlink when nothing is linked — should be a no-op (no error).
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatalf("Unlink() on unlinked project should be no-op, got error: %v", err)
 	}
 }

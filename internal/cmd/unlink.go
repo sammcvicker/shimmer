@@ -19,11 +19,16 @@ originals, clears skip-worktree flags, and cleans git exclude entries.`,
 				return renderError(err)
 			}
 
-			if err := s.Unlink(); err != nil {
+			n, err := s.Unlink()
+			if err != nil {
 				return renderError(err)
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "unlinked")
+			if n == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "nothing to unlink")
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "unlinked %d file(s)\n", n)
+			}
 			return nil
 		},
 	}

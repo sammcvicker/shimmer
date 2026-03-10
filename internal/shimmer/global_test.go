@@ -49,7 +49,7 @@ func TestGlobalLinkUnlink(t *testing.T) {
 	}
 
 	// Unlink
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Lstat(linked); !os.IsNotExist(err) {
@@ -91,7 +91,7 @@ func TestGlobalOverwriteRestoresStash(t *testing.T) {
 	}
 
 	// Unlink should restore
-	if err := s.Unlink(); err != nil {
+	if _, err := s.Unlink(); err != nil {
 		t.Fatal(err)
 	}
 	content, err := os.ReadFile(filepath.Join(fakeHome, "config.txt"))

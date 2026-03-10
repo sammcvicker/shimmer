@@ -55,7 +55,7 @@ func (s *Shimmer) RepoRemove() error {
 	}
 
 	// Unlink before removing to clean up symlinks (ignore error — may not be linked).
-	_ = s.Unlink()
+	_, _ = s.Unlink()
 	if err := os.RemoveAll(clone); err != nil {
 		return fmt.Errorf("removing clone: %w", err)
 	}
@@ -168,7 +168,7 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 		}
 	}
 
-	return &RepoInfo{
+	info := &RepoInfo{
 		Owner:        owner,
 		Name:         name,
 		RemoteURL:    strings.TrimSpace(remote),
@@ -176,7 +176,20 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 		Branch:       strings.TrimSpace(branch),
 		ClonePath:    clonePath,
 		TargetExists: targetExists,
-	}, nil
+	}
+
+	// Check linked status
+	if isGlobal {
+		if home, err := os.UserHomeDir(); err == nil {
+			links, _ := ScanSymlinks(home, s.Home)
+			info.Linked = len(links) > 0
+		}
+	} else if targetExists && targetPath != "" {
+		links, _ := ScanSymlinks(targetPath, s.Home)
+		info.Linked = len(links) > 0
+	}
+
+	return info, nil
 }
 
 // gitOutput runs git in the given directory and returns stdout.
