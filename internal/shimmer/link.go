@@ -96,7 +96,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 				}
 				result.Stashed = append(result.Stashed, rel)
 				if c.Tracked {
-					_ = s.setSkipWorktree(rel, true)
+					if err := s.setSkipWorktree(rel, true); err != nil {
+						fmt.Fprintf(os.Stderr, "warning: could not set skip-worktree for %s: %v\n", rel, err)
+					}
 				}
 			}
 		}
