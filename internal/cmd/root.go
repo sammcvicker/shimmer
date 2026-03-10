@@ -23,6 +23,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&globalFlag, "global", "g", false, "use global scope ($HOME)")
 
 	cmd.AddCommand(newRepoCmd())
+	cmd.AddCommand(newLinkCmd())
 
 	return cmd
 }
