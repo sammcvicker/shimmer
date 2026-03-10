@@ -53,21 +53,42 @@ func (ig *Ignore) Match(path string) bool {
 		}
 	}
 
-	// Check user patterns against the full path and the base name
 	base := filepath.Base(path)
 	for _, pattern := range ig.patterns {
-		// Try matching against the full relative path
-		if matched, _ := filepath.Match(pattern, path); matched {
-			return true
-		}
-		// Try matching against just the filename
-		if matched, _ := filepath.Match(pattern, base); matched {
-			return true
-		}
-		// Directory prefix match (pattern without trailing slash)
 		clean := strings.TrimSuffix(pattern, "/")
-		if path == clean || strings.HasPrefix(path, clean+"/") {
+		hasDirSlash := strings.HasSuffix(pattern, "/")
+
+		// If pattern contains a slash (after trimming trailing /),
+		// match against full path only.
+		if strings.Contains(clean, "/") {
+			if matched, _ := filepath.Match(clean, path); matched {
+				return true
+			}
+			// Directory prefix match
+			if path == clean || strings.HasPrefix(path, clean+"/") {
+				return true
+			}
+			continue
+		}
+
+		// Trailing-slash patterns (e.g. "docs/") are directory-only:
+		// match only as a directory prefix, not as a base name.
+		if hasDirSlash {
+			if path == clean || strings.HasPrefix(path, clean+"/") {
+				return true
+			}
+			continue
+		}
+
+		// No slash in pattern: match against base name (gitignore convention)
+		if matched, _ := filepath.Match(clean, base); matched {
 			return true
+		}
+		// Also check as directory prefix for non-glob patterns
+		if !strings.ContainsAny(clean, "*?[") {
+			if path == clean || strings.HasPrefix(path, clean+"/") {
+				return true
+			}
 		}
 	}
 	return false
