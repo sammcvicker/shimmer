@@ -42,7 +42,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 
 	// 4. For each file, check if destination exists (and is not a shimmer symlink).
 	//    Collect as conflicts.
-	var conflicts []Conflict
+	var conflictRels []string
 	conflictSet := make(map[string]Conflict)
 	for _, rel := range overlayFiles {
 		dest := filepath.Join(s.Target, rel)
@@ -65,8 +65,14 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 				}
 			}
 		}
-		tracked := s.isTracked(rel)
-		c := Conflict{Path: rel, Tracked: tracked}
+		conflictRels = append(conflictRels, rel)
+	}
+
+	// Batch-check which conflicting files are tracked by git (single subprocess).
+	tracked := s.trackedFiles(conflictRels)
+	var conflicts []Conflict
+	for _, rel := range conflictRels {
+		c := Conflict{Path: rel, Tracked: tracked[rel]}
 		conflicts = append(conflicts, c)
 		conflictSet[rel] = c
 	}
@@ -151,14 +157,25 @@ func (s *Shimmer) stashPath(rel string) string {
 	return filepath.Join(s.Target, ".git", "shimmer-stash", rel)
 }
 
-// isTracked checks if a file is tracked by git.
-func (s *Shimmer) isTracked(rel string) bool {
-	if s.Global {
-		return false
+// trackedFiles returns the subset of rels that are tracked by git.
+// It issues a single "git ls-files" subprocess for the entire batch.
+func (s *Shimmer) trackedFiles(rels []string) map[string]bool {
+	if s.Global || len(rels) == 0 {
+		return nil
 	}
-	cmd := exec.Command("git", "-C", s.Target, "ls-files", "--error-unmatch", rel)
-	err := cmd.Run()
-	return err == nil
+	args := append([]string{"-C", s.Target, "ls-files"}, rels...)
+	cmd := exec.Command("git", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	tracked := make(map[string]bool)
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line != "" {
+			tracked[line] = true
+		}
+	}
+	return tracked
 }
 
 // setSkipWorktree sets or clears the skip-worktree flag for a file.
