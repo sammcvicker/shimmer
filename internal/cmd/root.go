@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var globalFlag bool
-
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "shimmer",
@@ -22,7 +20,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceErrors:    true,
 	}
 
-	cmd.PersistentFlags().BoolVarP(&globalFlag, "global", "g", false, "use global scope ($HOME)")
+	cmd.PersistentFlags().BoolP("global", "g", false, "use global scope ($HOME)")
 
 	cmd.AddCommand(newRepoCmd())
 	cmd.AddCommand(newLinkCmd())

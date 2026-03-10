@@ -14,7 +14,7 @@ func newUnlinkCmd() *cobra.Command {
 originals, clears skip-worktree flags, and cleans git exclude entries.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}

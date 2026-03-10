@@ -5,17 +5,23 @@ import (
 	"os"
 
 	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/spf13/cobra"
 )
 
-// newShimmerFromFlags creates a *shimmer.Shimmer from the -g flag and current
-// working directory (discovers git root for local scope).
-func newShimmerFromFlags() (*shimmer.Shimmer, error) {
+// newShimmerFromCmd creates a Shimmer from the cobra command's -g flag.
+func newShimmerFromCmd(cmd *cobra.Command) (*shimmer.Shimmer, error) {
+	global, _ := cmd.Root().PersistentFlags().GetBool("global")
+	return newShimmerWithGlobal(global)
+}
+
+// newShimmerWithGlobal creates a Shimmer with an explicit global flag value.
+func newShimmerWithGlobal(global bool) (*shimmer.Shimmer, error) {
 	home, err := shimmer.DefaultHome()
 	if err != nil {
 		return nil, err
 	}
 
-	if globalFlag {
+	if global {
 		userHome, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("getting home directory: %w", err)

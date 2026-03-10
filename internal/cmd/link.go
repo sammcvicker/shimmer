@@ -19,7 +19,7 @@ If files already exist at the destination, use --skip to leave them alone
 or --overwrite to stash them and create the symlink.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := newShimmerFromFlags()
+			s, err := newShimmerFromCmd(cmd)
 			if err != nil {
 				return renderError(err)
 			}
