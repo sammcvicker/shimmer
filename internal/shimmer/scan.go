@@ -14,7 +14,11 @@ func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
 
 	err := filepath.WalkDir(targetDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip unreadable entries
+			// Surface errors for the root target itself; skip unreadable children.
+			if path == targetDir {
+				return err
+			}
+			return nil
 		}
 
 		// Skip .git directory
