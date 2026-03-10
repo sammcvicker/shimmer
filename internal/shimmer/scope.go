@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -55,7 +56,7 @@ func (l *LocalScope) TrackedFiles(rels []string) map[string]bool {
 	if len(rels) == 0 {
 		return nil
 	}
-	args := append([]string{"-C", l.target, "ls-files"}, rels...)
+	args := slices.Concat([]string{"-C", l.target, "ls-files"}, rels)
 	cmd := exec.Command("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
