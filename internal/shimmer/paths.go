@@ -52,6 +52,13 @@ func absSymlinkTarget(linkPath, target string) string {
 	return filepath.Join(filepath.Dir(linkPath), target)
 }
 
+// isSubpath reports whether path is equal to or nested under dir.
+// Unlike strings.HasPrefix, this is path-aware and won't match
+// /foo/bar-other when dir is /foo/bar.
+func isSubpath(path, dir string) bool {
+	return path == dir || strings.HasPrefix(path, dir+string(filepath.Separator))
+}
+
 // ClonePath computes the filesystem path where a clone should live.
 func ClonePath(home, owner, repo, targetPath string, global bool) string {
 	if global {

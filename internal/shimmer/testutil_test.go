@@ -64,6 +64,18 @@ func newTestShimmer(t *testing.T, home, target string, global bool) *shimmer.Shi
 	}
 }
 
+// writeFile creates a file at base/rel with the given content, creating parent dirs.
+func writeFile(t *testing.T, base, rel, content string) {
+	t.Helper()
+	p := filepath.Join(base, rel)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // git runs a git command in the given directory.
 func git(t *testing.T, dir string, args ...string) string {
 	t.Helper()

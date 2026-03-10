@@ -59,7 +59,9 @@ func (s *Shimmer) writeGlobalLinkedPaths(paths []string) error {
 		return nil
 	}
 	if len(paths) == 0 {
-		os.Remove(s.globalLinkedPathsFile())
+		if err := os.Remove(s.globalLinkedPathsFile()); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 		return nil
 	}
 	return os.WriteFile(s.globalLinkedPathsFile(), []byte(strings.Join(paths, "\n")+"\n"), 0o644)

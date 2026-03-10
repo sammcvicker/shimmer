@@ -57,7 +57,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			if linkErr == nil {
 				target = absSymlinkTarget(dest, target)
 				reposDir := filepath.Join(s.Home, "repos")
-				if strings.HasPrefix(target, reposDir) {
+				if isSubpath(target, reposDir) {
 					continue // it's a shimmer link that we just created or will create
 				}
 			}
@@ -230,7 +230,7 @@ func (s *Shimmer) updateGitExclude(linkedPaths []string) error {
 
 // cleanEmptyLinkParents removes empty directories up to the target root.
 func (s *Shimmer) cleanEmptyLinkParents(dir string) {
-	for dir != s.Target && strings.HasPrefix(dir, s.Target) {
+	for dir != s.Target && isSubpath(dir, s.Target) {
 		entries, err := os.ReadDir(dir)
 		if err != nil || len(entries) > 0 {
 			break

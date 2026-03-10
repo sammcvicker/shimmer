@@ -3,7 +3,6 @@ package shimmer
 import (
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // ScanSymlinks finds all symlinks under targetDir that point into shimmerHome/repos/.
@@ -29,7 +28,7 @@ func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
 				return nil
 			}
 			target = absSymlinkTarget(path, target)
-			if strings.HasPrefix(target, reposDir) {
+			if isSubpath(target, reposDir) {
 				links = append(links, path)
 			}
 		}
@@ -59,7 +58,7 @@ func CheckSymlinks(targetDir string, relPaths []string, shimmerHome string) ([]s
 			continue
 		}
 		target = absSymlinkTarget(path, target)
-		if strings.HasPrefix(target, reposDir) {
+		if isSubpath(target, reposDir) {
 			links = append(links, path)
 		}
 	}

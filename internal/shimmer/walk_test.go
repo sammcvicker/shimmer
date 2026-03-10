@@ -33,14 +33,4 @@ func TestWalkOverlay(t *testing.T) {
 	}
 }
 
-func writeFile(t *testing.T, base, rel, content string) {
-	t.Helper()
-	p := filepath.Join(base, rel)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
 

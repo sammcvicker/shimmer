@@ -43,6 +43,30 @@ func TestScanSymlinks(t *testing.T) {
 	}
 }
 
+func TestScanSymlinksIgnoresSimilarPrefix(t *testing.T) {
+	home := setupShimmerHome(t)
+	project := setupTestProject(t)
+
+	// Create a directory with a name that is a prefix-sibling of "repos"
+	// (e.g. "repos-other"). A symlink pointing there should NOT be detected.
+	decoyDir := filepath.Join(home, "repos-other", "owner", "repo")
+	writeFile(t, decoyDir, "CLAUDE.md", "decoy")
+	if err := os.Symlink(
+		filepath.Join(decoyDir, "CLAUDE.md"),
+		filepath.Join(project, "CLAUDE.md"),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	links, err := shimmer.ScanSymlinks(project, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 0 {
+		t.Fatalf("expected 0 links (decoy prefix), got %d: %v", len(links), links)
+	}
+}
+
 func TestScanSymlinksNested(t *testing.T) {
 	home := setupShimmerHome(t)
 	project := setupTestProject(t)

@@ -100,8 +100,13 @@ func (s *Shimmer) findClone() (string, error) {
 	}
 
 	var found string
+	var walkErr error
 	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || found != "" {
+		if err != nil {
+			walkErr = err
+			return filepath.SkipAll
+		}
+		if found != "" {
 			return filepath.SkipAll
 		}
 		if d.Name() == ".git" && d.IsDir() {
@@ -130,6 +135,9 @@ func (s *Shimmer) findClone() (string, error) {
 	})
 
 	if found == "" {
+		if walkErr != nil {
+			return "", fmt.Errorf("searching repos: %w", walkErr)
+		}
 		return "", &ErrNoRepo{Target: s.Target, Global: s.Global}
 	}
 	return found, nil
