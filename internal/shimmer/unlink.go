@@ -27,7 +27,9 @@ func (s *Shimmer) Unlink() (int, error) {
 
 		if !s.Global {
 			// Best-effort: clear skip-worktree (may fail if file was never tracked).
-			_ = s.setSkipWorktree(rel, false)
+			if err := s.setSkipWorktree(rel, false); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+			}
 		}
 
 		s.cleanEmptyLinkParents(filepath.Dir(link))
