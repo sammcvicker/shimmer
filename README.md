@@ -74,6 +74,7 @@ shimmer repo remove              Remove the overlay repo (unlinks first)
 
 shimmer link [--skip|--overwrite]  Create symlinks from overlay into project
 shimmer unlink                     Remove symlinks and restore stashed files
+shimmer eject                      Replace symlinks with file copies (keeps repo)
 shimmer status                     Show symlink health and repo info
 
 shimmer git <args...>            Run git commands against the overlay clone
@@ -98,6 +99,18 @@ When an overlay file would shadow an existing project file, `shimmer link` fails
 - **`git rm --cached`** — remove tracked files from the project first (recommended for tracked files)
 
 Stashed files are always restored by `shimmer unlink`.
+
+### Ejecting
+
+Use `shimmer eject` to materialize symlinks into real files you can commit. The overlay repo stays intact for future updates.
+
+```bash
+# Pull upstream changes, link, and eject into the project
+shimmer git pull
+shimmer link --overwrite
+shimmer eject
+git status  # ejected files show up as changes
+```
 
 ## .shimmerignore
 
