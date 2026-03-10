@@ -201,3 +201,66 @@ func TestEjectBrokenSymlink(t *testing.T) {
 		t.Errorf("expected 'broken symlink' in error, got: %v", err)
 	}
 }
+
+func TestEjectClearsSkipWorktree(t *testing.T) {
+	project := setupTestProject(t)
+	home := setupShimmerHome(t)
+	overlayURL := setupTestOverlay(t, map[string]string{
+		"CLAUDE.md": "# Overlay",
+	})
+
+	// Create a tracked file that will conflict with the overlay.
+	writeFile(t, project, "CLAUDE.md", "original")
+	git(t, project, "add", "CLAUDE.md")
+	git(t, project, "commit", "-m", "add CLAUDE.md")
+
+	s := newTestShimmer(t, home, project, false)
+	if _, err := s.RepoSet(overlayURL); err != nil {
+		t.Fatal(err)
+	}
+
+	// Link with overwrite — this sets skip-worktree on the tracked file.
+	if _, err := s.Link(false, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify skip-worktree is set: 'S' prefix in git ls-files -v means skip-worktree.
+	out := git(t, project, "ls-files", "-v", "CLAUDE.md")
+	if !strings.HasPrefix(out, "S") {
+		t.Fatalf("expected skip-worktree to be set (S prefix), got: %q", out)
+	}
+
+	// Eject — should clear skip-worktree.
+	result, err := s.Eject()
+	if err != nil {
+		t.Fatalf("Eject() error: %v", err)
+	}
+	if len(result.Ejected) != 1 {
+		t.Fatalf("expected 1 ejected, got %d", len(result.Ejected))
+	}
+
+	// Verify file is a regular file with overlay content.
+	info, err := os.Lstat(filepath.Join(project, "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Error("CLAUDE.md is still a symlink after eject")
+	}
+	content, err := os.ReadFile(filepath.Join(project, "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "# Overlay" {
+		t.Errorf("content = %q, want %q", content, "# Overlay")
+	}
+
+	// Verify skip-worktree is cleared: 'H' prefix means regular tracked file.
+	out = git(t, project, "ls-files", "-v", "CLAUDE.md")
+	if strings.HasPrefix(out, "S") {
+		t.Errorf("skip-worktree still set after eject, got: %q", out)
+	}
+	if !strings.HasPrefix(out, "H") {
+		t.Errorf("expected 'H' prefix (normal tracked), got: %q", out)
+	}
+}

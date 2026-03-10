@@ -53,6 +53,12 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		}
 
 		rel, _ := filepath.Rel(s.Target, link)
+
+		// Clear skip-worktree so git sees the real file again (local scope only).
+		if !s.Global {
+			_ = s.setSkipWorktree(rel, false)
+		}
+
 		result.Ejected = append(result.Ejected, rel)
 	}
 
