@@ -69,7 +69,9 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 
 	// 4. Clear exclude/linked-paths entries.
 	if s.Global {
-		s.writeGlobalLinkedPaths(nil)
+		if err := s.writeGlobalLinkedPaths(nil); err != nil {
+			return nil, fmt.Errorf("clearing global linked paths: %w", err)
+		}
 	} else {
 		if err := s.updateGitExclude(nil); err != nil {
 			return nil, fmt.Errorf("clearing .git/info/exclude: %w", err)
@@ -96,8 +98,11 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
 
-	_, err = io.Copy(out, in)
-	return err
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
 }
