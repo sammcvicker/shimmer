@@ -1,6 +1,7 @@
 package shimmer_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,7 +68,8 @@ func TestRepoSetAlreadyExists(t *testing.T) {
 	}
 
 	_, err := s.RepoSet(overlayURL)
-	if _, ok := err.(*shimmer.ErrRepoAlreadySet); !ok {
+	var alreadySet *shimmer.ErrRepoAlreadySet
+	if !errors.As(err, &alreadySet) {
 		t.Errorf("expected ErrRepoAlreadySet, got %v", err)
 	}
 }
@@ -100,7 +102,8 @@ func TestRepoPathNoRepo(t *testing.T) {
 
 	s := newTestShimmer(t, home, project, false)
 	_, err := s.RepoPath()
-	if _, ok := err.(*shimmer.ErrNoRepo); !ok {
+	var noRepo *shimmer.ErrNoRepo
+	if !errors.As(err, &noRepo) {
 		t.Errorf("expected ErrNoRepo, got %v", err)
 	}
 }
@@ -166,7 +169,8 @@ func TestRepoRemove(t *testing.T) {
 
 	// Should get ErrNoRepo now
 	_, err = s.RepoPath()
-	if _, ok := err.(*shimmer.ErrNoRepo); !ok {
+	var noRepo *shimmer.ErrNoRepo
+	if !errors.As(err, &noRepo) {
 		t.Errorf("expected ErrNoRepo after remove, got %v", err)
 	}
 }
@@ -177,7 +181,8 @@ func TestRepoRemoveNoRepo(t *testing.T) {
 
 	s := newTestShimmer(t, home, project, false)
 	err := s.RepoRemove()
-	if _, ok := err.(*shimmer.ErrNoRepo); !ok {
+	var noRepo *shimmer.ErrNoRepo
+	if !errors.As(err, &noRepo) {
 		t.Errorf("expected ErrNoRepo, got %v", err)
 	}
 }
