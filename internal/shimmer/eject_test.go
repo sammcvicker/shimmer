@@ -195,7 +195,7 @@ func TestEjectBrokenSymlink(t *testing.T) {
 	}
 	os.Remove(filepath.Join(clonePath, "CLAUDE.md"))
 
-	// Eject should fail.
+	// Eject should fail during pre-flight validation, before any mutations.
 	_, err = s.Eject()
 	if err == nil {
 		t.Fatal("expected error on broken symlink, got nil")
@@ -203,6 +203,15 @@ func TestEjectBrokenSymlink(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "broken symlink") {
 		t.Errorf("expected 'broken symlink' in error, got: %v", err)
+	}
+
+	// The symlink should still be in place — no mutations should have occurred.
+	info, statErr := os.Lstat(filepath.Join(project, "CLAUDE.md"))
+	if statErr != nil {
+		t.Fatalf("expected CLAUDE.md to still exist after failed eject: %v", statErr)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Error("CLAUDE.md should still be a symlink after pre-flight validation failure")
 	}
 }
 
