@@ -8,13 +8,17 @@ import (
 
 // Unlink removes all shimmer symlinks, restores stashed files, clears
 // skip-worktree flags, and cleans up .git/info/exclude entries.
-// It returns the number of symlinks removed. It is a no-op if nothing is linked.
+// It returns the number of symlinks removed, or ErrNotLinked if nothing is linked.
 func (s *Shimmer) Unlink() (int, error) {
 	// 1. Find all shimmer symlinks.
 	// Uses clone-based targeted check when possible (fast for global scope).
 	links, err := s.findShimmerLinks()
 	if err != nil {
 		return 0, fmt.Errorf("scanning symlinks: %w", err)
+	}
+
+	if len(links) == 0 {
+		return 0, &ErrNotLinked{}
 	}
 
 	// 2. For each symlink: remove it, clear skip-worktree if local, clean empty parents.
