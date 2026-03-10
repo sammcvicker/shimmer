@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -42,7 +43,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	// 4. For each file, check if destination exists (and is not a shimmer symlink).
 	//    Collect as conflicts.
 	var conflicts []Conflict
-	conflictSet := make(map[string]bool)
+	conflictSet := make(map[string]Conflict)
 	for _, rel := range overlayFiles {
 		dest := filepath.Join(s.Target, rel)
 		info, err := os.Lstat(dest)
@@ -64,8 +65,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			}
 		}
 		tracked := s.isTracked(rel)
-		conflicts = append(conflicts, Conflict{Path: rel, Tracked: tracked})
-		conflictSet[rel] = true
+		c := Conflict{Path: rel, Tracked: tracked}
+		conflicts = append(conflicts, c)
+		conflictSet[rel] = c
 	}
 
 	// 5. If conflicts exist and neither skip nor overwrite: return ErrConflicts.
@@ -82,7 +84,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		dest := filepath.Join(s.Target, rel)
 		src := filepath.Join(clonePath, rel)
 
-		if conflictSet[rel] {
+		if c, ok := conflictSet[rel]; ok {
 			if skip {
 				result.Skipped = append(result.Skipped, rel)
 				continue
@@ -92,9 +94,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 					return nil, fmt.Errorf("stashing %s: %w", rel, err)
 				}
 				result.Stashed = append(result.Stashed, rel)
-			if s.isTracked(rel) {
-				s.setSkipWorktree(rel, true)
-			}
+				if c.Tracked {
+					_ = s.setSkipWorktree(rel, true)
+				}
 			}
 		}
 
@@ -144,6 +146,9 @@ func (s *Shimmer) stashPath(rel string) string {
 
 // isTracked checks if a file is tracked by git.
 func (s *Shimmer) isTracked(rel string) bool {
+	if s.Global {
+		return false
+	}
 	cmd := exec.Command("git", "-C", s.Target, "ls-files", "--error-unmatch", rel)
 	err := cmd.Run()
 	return err == nil
@@ -203,7 +208,7 @@ func (s *Shimmer) updateGitExclude(linkedPaths []string) error {
 		sorted := make([]string, len(linkedPaths))
 		copy(sorted, linkedPaths)
 		// Sort for deterministic output.
-		sortStrings(sorted)
+		sort.Strings(sorted)
 		for _, p := range sorted {
 			block.WriteString(p)
 			block.WriteString("\n")
@@ -246,13 +251,4 @@ func filterOut(a, b []string) []string {
 		}
 	}
 	return result
-}
-
-// sortStrings sorts a slice of strings in place.
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
-	}
 }
