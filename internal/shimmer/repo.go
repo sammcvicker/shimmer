@@ -210,7 +210,7 @@ func gitOutput(dir string, args ...string) (string, error) {
 func (s *Shimmer) cleanEmptyParents(path string) {
 	reposDir := filepath.Join(s.Home, "repos")
 	dir := filepath.Dir(path)
-	for dir != reposDir && dir != s.Home {
+	for dir != reposDir && isSubpath(dir, reposDir) {
 		entries, err := os.ReadDir(dir)
 		if err != nil || len(entries) > 0 {
 			break
