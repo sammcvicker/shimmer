@@ -99,14 +99,11 @@ func (s *Shimmer) findClone() (string, error) {
 		return "", &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 	}
 
-	var found string
+	var matches []string
 	var walkErr error
 	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			walkErr = err
-			return filepath.SkipAll
-		}
-		if found != "" {
 			return filepath.SkipAll
 		}
 		if d.Name() == ".git" && d.IsDir() {
@@ -119,21 +116,25 @@ func (s *Shimmer) findClone() (string, error) {
 			targetSegment := segments[2]
 
 			if s.Scope.MatchClone(targetSegment) {
-				found = cloneDir
-				return filepath.SkipAll
+				matches = append(matches, cloneDir)
 			}
 			return filepath.SkipDir
 		}
 		return nil
 	})
 
-	if found == "" {
+	switch len(matches) {
+	case 0:
 		if walkErr != nil {
 			return "", fmt.Errorf("searching repos: %w", walkErr)
 		}
 		return "", &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("multiple overlay repos found for %s:\n  %s\nRemove extras with: shimmer repo remove",
+			s.Scope.ScopeLabel(), strings.Join(matches, "\n  "))
 	}
-	return found, nil
 }
 
 // repoInfo builds RepoInfo from a clone directory.
