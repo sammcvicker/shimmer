@@ -27,31 +27,30 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		return nil, &ErrNotLinked{}
 	}
 
-	// 2. Replace each symlink with a copy of its target.
-	result := &EjectResult{}
+	// 2. Pre-flight: validate all symlink targets exist before mutating anything.
+	targets := make(map[string]string, len(links)) // link path -> resolved target
 	for _, link := range links {
 		target, err := os.Readlink(link)
 		if err != nil {
 			return nil, fmt.Errorf("reading symlink %s: %w", link, err)
 		}
 		target = absSymlinkTarget(link, target)
-
-		// Verify target exists.
 		if _, err := os.Stat(target); err != nil {
 			rel, _ := filepath.Rel(s.Target, link)
-			return nil, fmt.Errorf("broken symlink %s: target %s does not exist — fix with shimmer status", rel, target)
+			return nil, fmt.Errorf("broken symlink %s: target %s does not exist — fix with shimmer link", rel, target)
 		}
+		targets[link] = target
+	}
 
-		// Remove symlink.
+	// 3. Replace each symlink with a copy of its target (all targets verified).
+	result := &EjectResult{}
+	for _, link := range links {
 		if err := os.Remove(link); err != nil {
 			return nil, fmt.Errorf("removing symlink %s: %w", link, err)
 		}
-
-		// Copy file contents.
-		if err := copyFile(target, link); err != nil {
+		if err := copyFile(targets[link], link); err != nil {
 			return nil, fmt.Errorf("copying %s: %w", link, err)
 		}
-
 		rel, _ := filepath.Rel(s.Target, link)
 
 		// Clear skip-worktree so git sees the real file again (local scope only).
@@ -62,7 +61,7 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		result.Ejected = append(result.Ejected, rel)
 	}
 
-	// 3. Delete the stash.
+	// 4. Delete the stash.
 	stash := s.stashDir()
 	if info, err := os.Stat(stash); err == nil && info.IsDir() {
 		if err := os.RemoveAll(stash); err != nil {
@@ -71,7 +70,7 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		result.StashCleared = true
 	}
 
-	// 4. Clear exclude/linked-paths entries.
+	// 5. Clear exclude/linked-paths entries.
 	if s.Global {
 		if err := s.writeGlobalLinkedPaths(nil); err != nil {
 			return nil, fmt.Errorf("clearing global linked paths: %w", err)
