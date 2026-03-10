@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/siimpl/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
@@ -58,13 +59,21 @@ func newRepoCmd() *cobra.Command {
 
 func newRepoSetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "set <url>",
+		Use:   "set <url> [project-path]",
 		Short: "Clone an overlay repo for the current project",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := newShimmerFromFlags()
 			if err != nil {
 				return renderError(err)
+			}
+
+			if len(args) > 1 {
+				target, err := resolveProjectPath(args[1])
+				if err != nil {
+					return renderError(err)
+				}
+				s.Target = target
 			}
 
 			info, err := s.RepoSet(args[0])
@@ -145,13 +154,21 @@ func newRepoListCmd() *cobra.Command {
 
 func newRepoRemoveCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "remove",
+		Use:   "remove [project-path]",
 		Short: "Remove the overlay repo clone for the current scope",
-		Args:  cobra.NoArgs,
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := newShimmerFromFlags()
 			if err != nil {
 				return renderError(err)
+			}
+
+			if len(args) > 0 {
+				target, err := resolveProjectPath(args[0])
+				if err != nil {
+					return renderError(err)
+				}
+				s.Target = target
 			}
 
 			if err := s.RepoRemove(); err != nil {
@@ -162,4 +179,12 @@ func newRepoRemoveCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func resolveProjectPath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return shimmer.GitRoot(abs)
 }
