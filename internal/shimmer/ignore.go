@@ -2,6 +2,7 @@ package shimmer
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,9 @@ func ParseShimmerignore(repoRoot string) (*Ignore, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		if _, err := filepath.Match(line, ""); err != nil {
+			return nil, fmt.Errorf("bad .shimmerignore pattern %q: %w", line, err)
+		}
 		ig.patterns = append(ig.patterns, line)
 	}
 	return ig, scanner.Err()
@@ -44,7 +48,7 @@ func ParseShimmerignore(repoRoot string) (*Ignore, error) {
 func (ig *Ignore) Match(path string) bool {
 	// Check implicit ignores
 	for _, imp := range implicitIgnores {
-		if path == imp || strings.HasPrefix(path, imp+"/") {
+		if path == imp || strings.HasPrefix(path, imp+string(filepath.Separator)) {
 			return true
 		}
 	}

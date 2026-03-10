@@ -3,6 +3,7 @@ package shimmer_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/siimpl/shimmer/internal/shimmer"
@@ -49,6 +50,22 @@ func TestParseShimmerignoreNoFile(t *testing.T) {
 
 	// Everything else is not ignored
 	assertIgnored(t, ignore, "CLAUDE.md", false)
+}
+
+func TestParseShimmerignoreMalformedPattern(t *testing.T) {
+	dir := t.TempDir()
+	content := "[invalid\n"
+	if err := os.WriteFile(filepath.Join(dir, ".shimmerignore"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := shimmer.ParseShimmerignore(dir)
+	if err == nil {
+		t.Fatal("expected error for malformed pattern, got nil")
+	}
+	if !strings.Contains(err.Error(), "[invalid") {
+		t.Errorf("error should mention the bad pattern, got: %v", err)
+	}
 }
 
 func assertIgnored(t *testing.T, ignore *shimmer.Ignore, path string, want bool) {
