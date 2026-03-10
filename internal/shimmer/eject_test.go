@@ -1,10 +1,13 @@
 package shimmer_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/siimpl/shimmer/internal/shimmer"
 )
 
 func TestEject(t *testing.T) {
@@ -158,13 +161,14 @@ func TestEjectNothingLinked(t *testing.T) {
 
 	s := newTestShimmer(t, home, project, false)
 
-	result, err := s.Eject()
-	if err != nil {
-		t.Fatalf("Eject() on unlinked project should succeed, got error: %v", err)
+	// Eject when nothing is linked — should return ErrNotLinked.
+	_, err := s.Eject()
+	if err == nil {
+		t.Fatal("Eject() on unlinked project should return ErrNotLinked, got nil")
 	}
-
-	if len(result.Ejected) != 0 {
-		t.Errorf("expected 0 ejected, got %d", len(result.Ejected))
+	var notLinked *shimmer.ErrNotLinked
+	if !errors.As(err, &notLinked) {
+		t.Fatalf("expected ErrNotLinked, got: %v", err)
 	}
 }
 

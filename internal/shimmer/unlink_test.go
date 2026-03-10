@@ -1,9 +1,12 @@
 package shimmer_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/siimpl/shimmer/internal/shimmer"
 )
 
 func TestUnlink(t *testing.T) {
@@ -103,8 +106,13 @@ func TestUnlinkNotLinked(t *testing.T) {
 
 	s := newTestShimmer(t, home, project, false)
 
-	// Unlink when nothing is linked — should be a no-op (no error).
-	if _, err := s.Unlink(); err != nil {
-		t.Fatalf("Unlink() on unlinked project should be no-op, got error: %v", err)
+	// Unlink when nothing is linked — should return ErrNotLinked.
+	_, err := s.Unlink()
+	if err == nil {
+		t.Fatal("Unlink() on unlinked project should return ErrNotLinked, got nil")
+	}
+	var notLinked *shimmer.ErrNotLinked
+	if !errors.As(err, &notLinked) {
+		t.Fatalf("expected ErrNotLinked, got: %v", err)
 	}
 }

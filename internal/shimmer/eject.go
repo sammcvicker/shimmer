@@ -24,7 +24,7 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 	}
 
 	if len(links) == 0 {
-		return &EjectResult{}, nil
+		return nil, &ErrNotLinked{}
 	}
 
 	// 2. Replace each symlink with a copy of its target.
