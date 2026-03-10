@@ -162,6 +162,10 @@ func (s *Shimmer) stashFile(rel, src string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
+	// Guard against overwriting an existing stash entry.
+	if _, err := os.Lstat(dest); err == nil {
+		return fmt.Errorf("stash conflict for %s: a previously stashed copy exists — run 'shimmer unlink' first to restore it", rel)
+	}
 	return os.Rename(src, dest)
 }
 

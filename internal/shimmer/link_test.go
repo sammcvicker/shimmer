@@ -242,3 +242,54 @@ func TestLinkReconciles(t *testing.T) {
 		t.Errorf("stale symlink should have been removed: %s", stalePath)
 	}
 }
+
+func TestLinkOverwriteGuardsExistingStash(t *testing.T) {
+	project := setupTestProject(t)
+	home := setupShimmerHome(t)
+	overlayURL := setupTestOverlay(t, map[string]string{
+		"CLAUDE.md": "# Overlay",
+	})
+
+	s := newTestShimmer(t, home, project, false)
+	if _, err := s.RepoSet(overlayURL); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a conflicting file and link with overwrite.
+	writeFile(t, project, "CLAUDE.md", "precious-v1")
+	if _, err := s.Link(false, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify stash has the original.
+	stashPath := filepath.Join(project, ".git", "shimmer-stash", "CLAUDE.md")
+	content, err := os.ReadFile(stashPath)
+	if err != nil {
+		t.Fatalf("expected stash entry: %v", err)
+	}
+	if string(content) != "precious-v1" {
+		t.Fatalf("stash content = %q, want %q", content, "precious-v1")
+	}
+
+	// Simulate: user deletes the symlink and creates a new real file.
+	os.Remove(filepath.Join(project, "CLAUDE.md"))
+	writeFile(t, project, "CLAUDE.md", "precious-v2")
+
+	// Second link --overwrite should fail because stash entry exists.
+	_, err = s.Link(false, true)
+	if err == nil {
+		t.Fatal("expected error on second overwrite with existing stash, got nil")
+	}
+	if !strings.Contains(err.Error(), "stash conflict") {
+		t.Errorf("expected 'stash conflict' in error, got: %v", err)
+	}
+
+	// Original stash entry should be preserved.
+	content, err = os.ReadFile(stashPath)
+	if err != nil {
+		t.Fatalf("stash entry should still exist: %v", err)
+	}
+	if string(content) != "precious-v1" {
+		t.Errorf("stash was overwritten: got %q, want %q", content, "precious-v1")
+	}
+}
