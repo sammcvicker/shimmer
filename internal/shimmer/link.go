@@ -48,7 +48,10 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		dest := filepath.Join(s.Target, rel)
 		info, err := os.Lstat(dest)
 		if err != nil {
-			continue // file doesn't exist, no conflict
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("checking %s: %w", rel, err)
 		}
 		// If it's a symlink pointing into our repos dir, it's ours (already removed above).
 		// If it still exists after removal it's something else or a new file.
