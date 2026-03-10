@@ -180,6 +180,7 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 		Branch:       strings.TrimSpace(branch),
 		ClonePath:    clonePath,
 		TargetExists: targetExists,
+		IsGlobal:     isGlobal,
 	}
 
 	// Check linked status using targeted check (fast for $HOME).

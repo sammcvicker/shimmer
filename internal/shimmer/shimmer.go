@@ -66,6 +66,7 @@ type RepoInfo struct {
 	ClonePath    string
 	Linked       bool
 	TargetExists bool
+	IsGlobal     bool
 }
 
 // LinkStatus is what shimmer status returns.

@@ -47,7 +47,7 @@ func newRepoSetCmd() *cobra.Command {
 			}
 
 			scope := info.TargetPath
-			if info.TargetPath == "" {
+			if info.IsGlobal {
 				scope = "global"
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Cloned %s/%s → %s (scope: %s)\n",
@@ -103,7 +103,7 @@ func newRepoListCmd() *cobra.Command {
 
 			for _, r := range repos {
 				scope := r.TargetPath
-				if r.TargetPath == "" {
+				if r.IsGlobal {
 					scope = "global"
 				}
 				status := ""

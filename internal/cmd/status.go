@@ -63,7 +63,7 @@ func renderStatus(w io.Writer, status *shimmer.LinkStatus) {
 
 	// Stashed files
 	for _, s := range status.Stashed {
-		if status.Repo.TargetPath == "" {
+		if status.Repo.IsGlobal {
 			fmt.Fprintf(w, "  stashed: %s (original in ~/.shimmer/stash/)\n", s)
 		} else {
 			fmt.Fprintf(w, "  stashed: %s (original in .git/shimmer-stash/)\n", s)
