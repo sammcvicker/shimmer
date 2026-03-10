@@ -43,6 +43,15 @@ func ParseRepoURL(url string) (owner, name string, err error) {
 	return segments[len(segments)-2], segments[len(segments)-1], nil
 }
 
+// absSymlinkTarget resolves a symlink target to an absolute path.
+// If target is already absolute, it is returned as-is.
+func absSymlinkTarget(linkPath, target string) string {
+	if filepath.IsAbs(target) {
+		return target
+	}
+	return filepath.Join(filepath.Dir(linkPath), target)
+}
+
 // ClonePath computes the filesystem path where a clone should live.
 func ClonePath(home, owner, repo, targetPath string, global bool) string {
 	if global {

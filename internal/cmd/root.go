@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -44,29 +45,32 @@ func Execute() error {
 
 // renderError translates typed errors into user-friendly messages.
 func renderError(err error) error {
-	switch e := err.(type) {
-	case *shimmer.ErrNoRepo:
-		scope := e.Target
-		if e.Global {
+	var noRepo *shimmer.ErrNoRepo
+	if errors.As(err, &noRepo) {
+		scope := noRepo.Target
+		if noRepo.Global {
 			scope = "global"
 		}
 		return fmt.Errorf("no overlay repo set for %s\n\n  shimmer repo set <url>", scope)
+	}
 
-	case *shimmer.ErrRepoAlreadySet:
+	var alreadySet *shimmer.ErrRepoAlreadySet
+	if errors.As(err, &alreadySet) {
 		return fmt.Errorf("overlay repo already set: %s\n  clone: %s\n\n  To change, first run: shimmer repo remove",
-			e.RemoteURL, e.ClonePath)
+			alreadySet.RemoteURL, alreadySet.ClonePath)
+	}
 
-	case *shimmer.ErrConflicts:
+	var conflicts *shimmer.ErrConflicts
+	if errors.As(err, &conflicts) {
 		var b strings.Builder
 		b.WriteString("these files already exist and would be shadowed:\n")
-		// Find max filename length for alignment
 		maxLen := 0
-		for _, c := range e.Conflicts {
+		for _, c := range conflicts.Conflicts {
 			if len(c.Path) > maxLen {
 				maxLen = len(c.Path)
 			}
 		}
-		for _, c := range e.Conflicts {
+		for _, c := range conflicts.Conflicts {
 			tracked := "untracked"
 			if c.Tracked {
 				tracked = "tracked"
@@ -77,10 +81,9 @@ func renderError(err error) error {
 		b.WriteString("  --skip        Link only non-conflicting files, leave existing ones in place\n")
 		b.WriteString("  --overwrite   Stash existing files and shadow them (tracked files use\n")
 		b.WriteString("                skip-worktree, which is fragile — see docs)\n")
-		// Check if any tracked conflicts exist for the git rm hint
 		hasTracked := false
 		var trackedFiles []string
-		for _, c := range e.Conflicts {
+		for _, c := range conflicts.Conflicts {
 			if c.Tracked {
 				hasTracked = true
 				trackedFiles = append(trackedFiles, c.Path)
@@ -96,14 +99,17 @@ func renderError(err error) error {
 		b.WriteString("\nTo undo any shimmer operation:\n")
 		b.WriteString("  shimmer unlink\n")
 		return fmt.Errorf("%s", b.String())
-
-	case *shimmer.ErrNotInGitRepo:
-		return fmt.Errorf("not in a git repository (use -g for global scope)")
-
-	case *shimmer.ErrNotLinked:
-		return fmt.Errorf("not linked — nothing to do")
-
-	default:
-		return err
 	}
+
+	var notInGit *shimmer.ErrNotInGitRepo
+	if errors.As(err, &notInGit) {
+		return fmt.Errorf("not in a git repository (use -g for global scope)")
+	}
+
+	var notLinked *shimmer.ErrNotLinked
+	if errors.As(err, &notLinked) {
+		return fmt.Errorf("not linked — nothing to do")
+	}
+
+	return err
 }

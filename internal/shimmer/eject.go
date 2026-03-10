@@ -34,9 +34,7 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading symlink %s: %w", link, err)
 		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(link), target)
-		}
+		target = absSymlinkTarget(link, target)
 
 		// Verify target exists.
 		if _, err := os.Stat(target); err != nil {

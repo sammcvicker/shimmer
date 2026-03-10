@@ -55,9 +55,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		if info.Mode()&os.ModeSymlink != 0 {
 			target, linkErr := os.Readlink(dest)
 			if linkErr == nil {
-				if !filepath.IsAbs(target) {
-					target = filepath.Join(filepath.Dir(dest), target)
-				}
+				target = absSymlinkTarget(dest, target)
 				reposDir := filepath.Join(s.Home, "repos")
 				if strings.HasPrefix(target, reposDir) {
 					continue // it's a shimmer link that we just created or will create

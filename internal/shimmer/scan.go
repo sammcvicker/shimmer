@@ -28,10 +28,7 @@ func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
 			if err != nil {
 				return nil
 			}
-			// Resolve to absolute
-			if !filepath.IsAbs(target) {
-				target = filepath.Join(filepath.Dir(path), target)
-			}
+			target = absSymlinkTarget(path, target)
 			if strings.HasPrefix(target, reposDir) {
 				links = append(links, path)
 			}
@@ -61,9 +58,7 @@ func CheckSymlinks(targetDir string, relPaths []string, shimmerHome string) ([]s
 		if err != nil {
 			continue
 		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
-		}
+		target = absSymlinkTarget(path, target)
 		if strings.HasPrefix(target, reposDir) {
 			links = append(links, path)
 		}

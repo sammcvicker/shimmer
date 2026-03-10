@@ -3,6 +3,7 @@ package shimmer_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestWalkOverlay(t *testing.T) {
 
 	sort.Strings(files)
 	want := []string{".claude/settings.json", ".claude/skills/review.md", ".cursorrules", "CLAUDE.md"}
-	if !slicesEqual(files, want) {
+	if !slices.Equal(files, want) {
 		t.Errorf("got %v, want %v", files, want)
 	}
 }
@@ -43,14 +44,3 @@ func writeFile(t *testing.T, base, rel, content string) {
 	}
 }
 
-func slicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}

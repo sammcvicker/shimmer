@@ -12,7 +12,10 @@ import (
 // newShimmerFromFlags creates a *shimmer.Shimmer from the -g flag and current
 // working directory (discovers git root for local scope).
 func newShimmerFromFlags() (*shimmer.Shimmer, error) {
-	home := shimmer.DefaultHome()
+	home, err := shimmer.DefaultHome()
+	if err != nil {
+		return nil, err
+	}
 
 	if globalFlag {
 		userHome, err := os.UserHomeDir()
@@ -120,7 +123,11 @@ func newRepoListCmd() *cobra.Command {
 		Short: "List all overlay repo clones",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s := &shimmer.Shimmer{Home: shimmer.DefaultHome()}
+			home, err := shimmer.DefaultHome()
+			if err != nil {
+				return err
+			}
+			s := &shimmer.Shimmer{Home: home}
 
 			repos, err := s.RepoList()
 			if err != nil {

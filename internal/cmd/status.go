@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/siimpl/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
@@ -32,7 +33,7 @@ This is purely diagnostic — no files are created or removed.`,
 	}
 }
 
-func renderStatus(w interface{ Write([]byte) (int, error) }, status *shimmer.LinkStatus) {
+func renderStatus(w io.Writer, status *shimmer.LinkStatus) {
 	total := len(status.Files)
 	var broken int
 	for _, f := range status.Files {
@@ -62,6 +63,10 @@ func renderStatus(w interface{ Write([]byte) (int, error) }, status *shimmer.Lin
 
 	// Stashed files
 	for _, s := range status.Stashed {
-		fmt.Fprintf(w, "  stashed: %s (original in .git/shimmer-stash/)\n", s)
+		if status.Repo.TargetPath == "" {
+			fmt.Fprintf(w, "  stashed: %s (original in ~/.shimmer/stash/)\n", s)
+		} else {
+			fmt.Fprintf(w, "  stashed: %s (original in .git/shimmer-stash/)\n", s)
+		}
 	}
 }

@@ -40,11 +40,7 @@ func (s *Shimmer) RepoSet(url string) (*RepoInfo, error) {
 
 // RepoPath returns the absolute path to the clone for the current scope.
 func (s *Shimmer) RepoPath() (string, error) {
-	clone, err := s.findClone()
-	if err != nil {
-		return "", err
-	}
-	return clone, nil
+	return s.findClone()
 }
 
 // RepoRemove deletes the clone for the current scope.

@@ -36,9 +36,7 @@ func (s *Shimmer) Status() (*LinkStatus, error) {
 			files = append(files, FileStatus{Path: rel, OK: false, Reason: "unreadable"})
 			continue
 		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(link), target)
-		}
+		target = absSymlinkTarget(link, target)
 		if _, err := os.Stat(target); err != nil {
 			files = append(files, FileStatus{Path: rel, OK: false, Reason: "target missing"})
 		} else {

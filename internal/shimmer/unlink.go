@@ -40,7 +40,9 @@ func (s *Shimmer) Unlink() (int, error) {
 
 	// 4. Clear link state: .git/info/exclude (local) or ~/.shimmer/linked (global).
 	if s.Global {
-		s.writeGlobalLinkedPaths(nil)
+		if err := s.writeGlobalLinkedPaths(nil); err != nil {
+			return 0, fmt.Errorf("clearing global linked paths: %w", err)
+		}
 	} else {
 		if err := s.updateGitExclude(nil); err != nil {
 			return 0, fmt.Errorf("clearing .git/info/exclude: %w", err)

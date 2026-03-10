@@ -1,6 +1,7 @@
 package shimmer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -13,9 +14,12 @@ type Shimmer struct {
 }
 
 // DefaultHome returns the default shimmer home directory.
-func DefaultHome() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".shimmer")
+func DefaultHome() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("determining home directory: %w", err)
+	}
+	return filepath.Join(home, ".shimmer"), nil
 }
 
 // Link represents a single symlink to create.
