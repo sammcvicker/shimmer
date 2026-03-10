@@ -30,6 +30,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newStatusCmd())
 	cmd.AddCommand(newGitCmd())
 	cmd.AddCommand(newEjectCmd())
+	cmd.AddCommand(newVersionCmd())
 
 	return cmd
 }
