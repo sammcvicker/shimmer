@@ -92,6 +92,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 					return nil, fmt.Errorf("stashing %s: %w", rel, err)
 				}
 				result.Stashed = append(result.Stashed, rel)
+			if s.isTracked(rel) {
+				s.setSkipWorktree(rel, true)
+			}
 			}
 		}
 
