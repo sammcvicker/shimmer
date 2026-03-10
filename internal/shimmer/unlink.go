@@ -18,7 +18,16 @@ func (s *Shimmer) Unlink() (int, error) {
 	}
 
 	if len(links) == 0 {
-		return 0, &ErrNotLinked{}
+		// Check for leftover stash from a partial failure.
+		stash := s.stashDir()
+		if info, err := os.Stat(stash); err != nil || !info.IsDir() {
+			return 0, &ErrNotLinked{}
+		}
+		// Stash exists but no links — restore it.
+		if err := s.restoreStash(); err != nil {
+			return 0, fmt.Errorf("restoring stash: %w", err)
+		}
+		return 0, nil
 	}
 
 	// 2. For each symlink: remove it, clear skip-worktree if local, clean empty parents.
