@@ -10,20 +10,19 @@ import (
 
 // Link reconciles symlinks between the overlay clone and the target.
 // skip: skip conflicting files. overwrite: stash and shadow conflicting files.
+// Uses a diff-based approach: only creates/removes symlinks that actually changed,
+// avoiding unnecessary filesystem churn on re-link.
 func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
-	// 1. Find the clone for the current scope.
 	clonePath, err := s.findClone()
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Remove stale symlinks from previous link state.
 	existing, err := s.findShimmerLinks()
 	if err != nil {
 		return nil, fmt.Errorf("scanning existing links: %w", err)
 	}
 
-	// 3. Walk overlay to get files to link.
 	overlayFiles, err := WalkOverlay(clonePath)
 	if err != nil {
 		return nil, fmt.Errorf("walking overlay: %w", err)
@@ -31,21 +30,52 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 
 	target := s.Scope.Target()
 
-	var removed []string
-	for _, link := range existing {
-		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("removing stale link %s: %w", link, err)
-		}
-		rel, _ := filepath.Rel(target, link)
-		removed = append(removed, rel)
-		s.cleanEmptyLinkParents(filepath.Dir(link))
+	// Build sets for diff computation.
+	desiredSet := make(map[string]string, len(overlayFiles)) // rel -> src
+	for _, rel := range overlayFiles {
+		desiredSet[rel] = filepath.Join(clonePath, rel)
 	}
 
-	// 4. For each file, check if destination exists (and is not a shimmer symlink).
-	//    Collect as conflicts.
+	existingByRel := make(map[string]string, len(existing)) // rel -> linkPath
+	for _, link := range existing {
+		rel, _ := filepath.Rel(target, link)
+		existingByRel[rel] = link
+	}
+
+	result := &LinkResult{}
+
+	// Remove stale links (exist but not desired).
+	for rel, link := range existingByRel {
+		if _, desired := desiredSet[rel]; !desired {
+			if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("removing stale link %s: %w", link, err)
+			}
+			result.Removed = append(result.Removed, rel)
+			s.cleanEmptyLinkParents(filepath.Dir(link))
+		}
+	}
+
+	// Determine which desired files already have correct symlinks.
+	alreadyCurrent := make(map[string]bool)
+	for rel, src := range desiredSet {
+		if linkPath, exists := existingByRel[rel]; exists {
+			linkTarget, err := os.Readlink(linkPath)
+			if err == nil {
+				linkTarget = absSymlinkTarget(linkPath, linkTarget)
+				if linkTarget == src {
+					alreadyCurrent[rel] = true
+				}
+			}
+		}
+	}
+
+	// Check for conflicts among files that need creating.
 	var conflictRels []string
 	conflictSet := make(map[string]Conflict)
 	for _, rel := range overlayFiles {
+		if alreadyCurrent[rel] {
+			continue // already correctly linked
+		}
 		dest := filepath.Join(target, rel)
 		info, err := os.Lstat(dest)
 		if err != nil {
@@ -54,22 +84,21 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			}
 			return nil, fmt.Errorf("checking %s: %w", rel, err)
 		}
-		// If it's a symlink pointing into our repos dir, it's ours (already removed above).
-		// If it still exists after removal it's something else or a new file.
 		if info.Mode()&os.ModeSymlink != 0 {
 			linkTarget, linkErr := os.Readlink(dest)
 			if linkErr == nil {
 				linkTarget = absSymlinkTarget(dest, linkTarget)
 				reposDir := filepath.Join(s.Home, "repos")
 				if isSubpath(linkTarget, reposDir) {
-					continue // it's a shimmer link that we just created or will create
+					// Stale shimmer link with wrong target — remove it.
+					os.Remove(dest)
+					continue
 				}
 			}
 		}
 		conflictRels = append(conflictRels, rel)
 	}
 
-	// Batch-check which conflicting files are tracked by git (single subprocess).
 	tracked := s.Scope.TrackedFiles(conflictRels)
 	var conflicts []Conflict
 	for _, rel := range conflictRels {
@@ -78,19 +107,19 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		conflictSet[rel] = c
 	}
 
-	// 5. If conflicts and no flags: return ErrConflicts.
 	if len(conflicts) > 0 && !skip && !overwrite {
 		return nil, &ErrConflicts{Conflicts: conflicts}
 	}
 
-	// 6. Create symlinks.
-	result := &LinkResult{
-		Removed: removed,
-	}
-
+	// Create symlinks for files that need it.
 	for _, rel := range overlayFiles {
+		if alreadyCurrent[rel] {
+			result.Linked = append(result.Linked, rel)
+			continue
+		}
+
 		dest := filepath.Join(target, rel)
-		src := filepath.Join(clonePath, rel)
+		src := desiredSet[rel]
 
 		if c, ok := conflictSet[rel]; ok {
 			if skip {
@@ -110,25 +139,19 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			}
 		}
 
-		// Create parent directories if needed.
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return nil, fmt.Errorf("creating parent dirs for %s: %w", rel, err)
 		}
 
-		// Create symlink.
 		if err := os.Symlink(src, dest); err != nil {
 			return nil, fmt.Errorf("creating symlink %s: %w", rel, err)
 		}
 		result.Linked = append(result.Linked, rel)
 	}
 
-	// 7. Update link state.
 	if err := s.Scope.SaveLinkState(result.Linked); err != nil {
 		return nil, fmt.Errorf("saving link state: %w", err)
 	}
-
-	// 8. Filter result.Removed to exclude files that were re-linked.
-	result.Removed = filterOut(result.Removed, result.Linked)
 
 	return result, nil
 }
@@ -152,7 +175,10 @@ func updateGitExclude(target string, linkedPaths []string) error {
 	}
 
 	// Read existing content.
-	existing, _ := os.ReadFile(excludePath)
+	existing, err := os.ReadFile(excludePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading %s: %w", excludePath, err)
+	}
 	content := string(existing)
 
 	// Remove old shimmer block if present.
@@ -214,17 +240,3 @@ func (s *Shimmer) cleanEmptyLinkParents(dir string) {
 	}
 }
 
-// filterOut returns items in a that are not in b.
-func filterOut(a, b []string) []string {
-	set := make(map[string]bool, len(b))
-	for _, s := range b {
-		set[s] = true
-	}
-	var result []string
-	for _, s := range a {
-		if !set[s] {
-			result = append(result, s)
-		}
-	}
-	return result
-}
