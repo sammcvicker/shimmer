@@ -54,7 +54,8 @@ func (s *Shimmer) RepoRemove() error {
 		return err
 	}
 
-	// TODO(task-9): Call s.Unlink() before removing to clean up symlinks.
+	// Unlink before removing to clean up symlinks (ignore error — may not be linked).
+	_ = s.Unlink()
 	if err := os.RemoveAll(clone); err != nil {
 		return fmt.Errorf("removing clone: %w", err)
 	}

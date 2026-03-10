@@ -24,6 +24,7 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(newRepoCmd())
 	cmd.AddCommand(newLinkCmd())
+	cmd.AddCommand(newUnlinkCmd())
 
 	return cmd
 }
