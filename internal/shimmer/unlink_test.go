@@ -100,6 +100,50 @@ func TestUnlinkRestoresStashed(t *testing.T) {
 	}
 }
 
+func TestUnlinkRestoresOrphanedStash(t *testing.T) {
+	project := setupTestProject(t)
+	home := setupShimmerHome(t)
+
+	s := newTestShimmer(t, home, project, false)
+
+	// Simulate a partial failure: stash files exist but no symlinks.
+	stashDir := filepath.Join(project, ".git", "shimmer-stash")
+	writeFile(t, stashDir, "CLAUDE.md", "original claude")
+	writeFile(t, stashDir, ".claude/settings.json", `{"orig": true}`)
+
+	// Unlink should NOT return ErrNotLinked; it should restore the stash.
+	_, err := s.Unlink()
+	if err != nil {
+		var notLinked *shimmer.ErrNotLinked
+		if errors.As(err, &notLinked) {
+			t.Fatal("Unlink() returned ErrNotLinked despite orphaned stash")
+		}
+		t.Fatalf("Unlink() unexpected error: %v", err)
+	}
+
+	// Verify stash files were restored to the project.
+	for _, tc := range []struct {
+		rel     string
+		content string
+	}{
+		{"CLAUDE.md", "original claude"},
+		{".claude/settings.json", `{"orig": true}`},
+	} {
+		got, err := os.ReadFile(filepath.Join(project, tc.rel))
+		if err != nil {
+			t.Fatalf("expected %s to be restored: %v", tc.rel, err)
+		}
+		if string(got) != tc.content {
+			t.Errorf("%s content = %q, want %q", tc.rel, string(got), tc.content)
+		}
+	}
+
+	// Verify stash directory is cleaned up.
+	if _, err := os.Stat(stashDir); !os.IsNotExist(err) {
+		t.Errorf("expected stash directory to be cleaned up, but it still exists")
+	}
+}
+
 func TestUnlinkNotLinked(t *testing.T) {
 	project := setupTestProject(t)
 	home := setupShimmerHome(t)
