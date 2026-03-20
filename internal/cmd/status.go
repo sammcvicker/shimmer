@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/sammcvicker/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
 )
 

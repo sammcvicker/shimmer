@@ -127,7 +127,7 @@ Show symlink health for the current scope (local by default, global with `-g`). 
 
 ```
 linked (3 files)
-  repo: siimpl/claude-dhi @ main
+  repo: myorg/claude-overlay @ main
   ok:  CLAUDE.md
   ok:  .claude/settings.json
   ok:  .claude/skills/review.md
@@ -138,7 +138,7 @@ Or when something's wrong:
 
 ```
 linked (3 files, 1 broken)
-  repo: siimpl/claude-dhi @ main
+  repo: myorg/claude-overlay @ main
   ok:      CLAUDE.md
   ok:      .claude/settings.json
   BROKEN:  .claude/skills/review.md (target missing — run `shimmer link` to reconcile)
@@ -164,13 +164,13 @@ shimmer -g git status           # git status of global overlay clone
 
 ```bash
 # Set the global overlay repo
-shimmer -g repo set git@github.com:siimpl/claude-global.git
+shimmer -g repo set git@github.com:myorg/claude-global.git
 
 # Set a project's overlay repo (from within the project)
-shimmer repo set git@github.com:siimpl/claude-dhi.git
+shimmer repo set git@github.com:myorg/claude-overlay.git
 
 # Or set it from elsewhere, specifying the project path
-shimmer repo set git@github.com:siimpl/claude-dhi.git ~/projects/dhi
+shimmer repo set git@github.com:myorg/claude-overlay.git ~/projects/dhi
 
 # Link — symlinks each file from the clone into the project
 shimmer link
@@ -197,7 +197,7 @@ vim $(shimmer repo path)
 
 # Project moved? Re-register from the new location, clean up the old one.
 cd ~/projects/new-dhi
-shimmer repo set git@github.com:siimpl/claude-dhi.git
+shimmer repo set git@github.com:myorg/claude-overlay.git
 shimmer link
 shimmer repo remove ~/projects/old-dhi    # clean up orphaned clone
 ```
@@ -225,7 +225,7 @@ Example:
 
 ```
 ~/.shimmer/repos/
-├── siimpl/
+├── myorg/
 │   ├── claude-global/
 │   │   └── _global/                                # global overlay clone
 │   └── claude-dhi/
@@ -257,9 +257,9 @@ Each leaf directory containing a `.git/` is a clone. Everything is derivable:
 Per-file symlinks, preserving the repo's directory structure:
 
 ```
-~/projects/dhi/CLAUDE.md                -> ~/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi/CLAUDE.md
-~/projects/dhi/.claude/settings.json    -> ~/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi/.claude/settings.json
-~/projects/dhi/.claude/skills/review.md -> ~/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi/.claude/skills/review.md
+~/projects/dhi/CLAUDE.md                -> ~/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi/CLAUDE.md
+~/projects/dhi/.claude/settings.json    -> ~/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi/.claude/settings.json
+~/projects/dhi/.claude/skills/review.md -> ~/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi/.claude/skills/review.md
 ```
 
 Editors follow symlinks, so diffs show changes relative to the overlay repo. The project can have its own non-overlapping files alongside linked ones.
@@ -289,7 +289,7 @@ The project repo tracks `CLAUDE.md` or `.claude/` files, or has untracked files 
 
 ### Project moved to a new path
 
-The clone lives at `~/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi/`. If the project moves, symlinks in the new location don't exist. `shimmer repo list` shows the old path with "project not found on disk" status.
+The clone lives at `~/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi/`. If the project moves, symlinks in the new location don't exist. `shimmer repo list` shows the old path with "project not found on disk" status.
 
 **Resolution:** `shimmer repo set <same-url>` from the new location creates a fresh clone. `shimmer repo remove ~/projects/old-dhi` cleans up the orphan. The examples section shows this workflow.
 

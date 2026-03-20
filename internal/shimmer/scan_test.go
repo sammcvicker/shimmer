@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/sammcvicker/shimmer/internal/shimmer"
 )
 
 func TestScanSymlinks(t *testing.T) {

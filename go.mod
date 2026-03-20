@@ -1,4 +1,4 @@
-module github.com/siimpl/shimmer
+module github.com/sammcvicker/shimmer
 
 go 1.25.0
 

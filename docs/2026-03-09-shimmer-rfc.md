@@ -2,11 +2,11 @@
 
 ## The Ask
 
-Build `shimmer`, a small Go CLI that lets Siimpl engineers share and switch between AI tool configurations via git-backed symlink overlays. Estimated scope: a few focused days for the core commands, internal use only.
+Build `shimmer`, a small Go CLI that lets engineers share and switch between AI tool configurations via git-backed symlink overlays.
 
 ## Why This, Specifically
 
-Siimpl puts smart technical people on teams that need them. If a client needed AI automation, they already have the domain expertise to build it better than we could — they hired us for the people, not the bots. And if we built the automation anyway, we'd be handing them a reason to end the engagement. What Siimpl actually needs is more of what it already sells: engineers who are exceptionally good, now amplified by AI. That means collaborating on how we use these tools — sharing what works, learning from each other, and iterating together — not building autonomous systems that replace us.
+Engineers are better when they share what works. AI coding tools are powerful but deeply configurable — and right now there's no good way to collaborate on that configuration. Shimmer exists so teams can share what works, learn from each other, and iterate together on how they use these tools.
 
 ## The Problem
 
@@ -42,7 +42,7 @@ It's a completely generic tool — it doesn't know or care what files it's overl
 
 ```bash
 # Set an overlay repo for this project
-shimmer repo set git@github.com:siimpl/claude-dhi.git
+shimmer repo set git@github.com:myorg/claude-overlay.git
 
 # Link — symlinks each file from the overlay into the project
 shimmer link
@@ -103,4 +103,4 @@ Dotfile managers (chezmoi, yadm, dotbot) solve a different problem — managing 
 
 - **Language:** Go. Single binary, easy distribution, team already uses it.
 - **Dependencies:** Just git on PATH. No Docker, no daemon, no network services.
-- **Scope:** Internal to Siimpl. Open source later if it proves valuable.
+- **Scope:** Open source, MIT licensed.

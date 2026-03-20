@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/sammcvicker/shimmer/internal/shimmer"
 )
 
 // setupTestProject creates a temp directory with an initialized git repo.

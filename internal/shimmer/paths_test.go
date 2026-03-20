@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/sammcvicker/shimmer/internal/shimmer"
 )
 
 func TestGitRoot(t *testing.T) {
@@ -52,14 +52,14 @@ func TestParseRepoURL(t *testing.T) {
 		wantOwner string
 		wantName  string
 	}{
-		{"git@github.com:siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
-		{"git@github.com:siimpl/claude-dhi", "siimpl", "claude-dhi"},
-		{"https://github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
-		{"https://github.com/siimpl/claude-dhi", "siimpl", "claude-dhi"},
+		{"git@github.com:myorg/claude-overlay.git", "myorg", "claude-overlay"},
+		{"git@github.com:myorg/claude-overlay", "myorg", "claude-overlay"},
+		{"https://github.com/myorg/claude-overlay.git", "myorg", "claude-overlay"},
+		{"https://github.com/myorg/claude-overlay", "myorg", "claude-overlay"},
 		{"git@github.com:other-org/claude-configs.git", "other-org", "claude-configs"},
-		{"ssh://git@github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
-		{"ssh://git@github.com/siimpl/claude-dhi", "siimpl", "claude-dhi"},
-		{"ssh://github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
+		{"ssh://git@github.com/myorg/claude-overlay.git", "myorg", "claude-overlay"},
+		{"ssh://git@github.com/myorg/claude-overlay", "myorg", "claude-overlay"},
+		{"ssh://github.com/myorg/claude-overlay.git", "myorg", "claude-overlay"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.url, func(t *testing.T) {
@@ -79,16 +79,16 @@ func TestClonePath(t *testing.T) {
 
 	// Local scope
 	local := shimmer.NewLocalScope("/Users/sam/projects/dhi")
-	got := local.ClonePath(home, "siimpl", "claude-dhi")
-	want := "/home/test/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi"
+	got := local.ClonePath(home, "myorg", "claude-overlay")
+	want := "/home/test/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi"
 	if got != want {
 		t.Errorf("local: got %q, want %q", got, want)
 	}
 
 	// Global scope
 	global := shimmer.NewGlobalScope("/Users/sam", home)
-	got = global.ClonePath(home, "siimpl", "claude-global")
-	want = "/home/test/.shimmer/repos/siimpl/claude-global/_global"
+	got = global.ClonePath(home, "myorg", "claude-global")
+	want = "/home/test/.shimmer/repos/myorg/claude-global/_global"
 	if got != want {
 		t.Errorf("global: got %q, want %q", got, want)
 	}

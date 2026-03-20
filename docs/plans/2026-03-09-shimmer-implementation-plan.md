@@ -26,7 +26,7 @@
 Run:
 ```bash
 cd /Users/sam/projects/shimmer
-go mod init github.com/siimpl/shimmer
+go mod init github.com/myorg/shimmer
 go get github.com/spf13/cobra@latest
 ```
 
@@ -40,7 +40,7 @@ package main
 import (
 	"os"
 
-	"github.com/siimpl/shimmer/internal/cmd"
+	"github.com/myorg/shimmer/internal/cmd"
 )
 
 func main() {
@@ -254,7 +254,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 // setupTestProject creates a temp directory with an initialized git repo.
@@ -371,7 +371,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestGitRoot(t *testing.T) {
@@ -412,10 +412,10 @@ func TestParseRepoURL(t *testing.T) {
 		wantOwner    string
 		wantName     string
 	}{
-		{"git@github.com:siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
-		{"git@github.com:siimpl/claude-dhi", "siimpl", "claude-dhi"},
-		{"https://github.com/siimpl/claude-dhi.git", "siimpl", "claude-dhi"},
-		{"https://github.com/siimpl/claude-dhi", "siimpl", "claude-dhi"},
+		{"git@github.com:myorg/claude-overlay.git", "myorg", "claude-overlay"},
+		{"git@github.com:myorg/claude-overlay", "myorg", "claude-overlay"},
+		{"https://github.com/myorg/claude-overlay.git", "myorg", "claude-overlay"},
+		{"https://github.com/myorg/claude-overlay", "myorg", "claude-overlay"},
 		{"git@github.com:other-org/claude-configs.git", "other-org", "claude-configs"},
 	}
 	for _, tt := range tests {
@@ -435,15 +435,15 @@ func TestClonePath(t *testing.T) {
 	home := "/home/test/.shimmer"
 
 	// Local scope
-	got := shimmer.ClonePath(home, "siimpl", "claude-dhi", "/Users/sam/projects/dhi", false)
-	want := "/home/test/.shimmer/repos/siimpl/claude-dhi/Users/sam/projects/dhi"
+	got := shimmer.ClonePath(home, "myorg", "claude-overlay", "/Users/sam/projects/dhi", false)
+	want := "/home/test/.shimmer/repos/myorg/claude-overlay/Users/sam/projects/dhi"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
 	// Global scope
-	got = shimmer.ClonePath(home, "siimpl", "claude-global", "", true)
-	want = "/home/test/.shimmer/repos/siimpl/claude-global/_global"
+	got = shimmer.ClonePath(home, "myorg", "claude-global", "", true)
+	want = "/home/test/.shimmer/repos/myorg/claude-global/_global"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -572,7 +572,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestParseShimmerignore(t *testing.T) {
@@ -743,7 +743,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestRepoSet(t *testing.T) {
@@ -1093,7 +1093,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
 )
 
@@ -1269,7 +1269,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
 )
 
@@ -1387,7 +1387,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestWalkOverlay(t *testing.T) {
@@ -1527,7 +1527,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestScanSymlinks(t *testing.T) {
@@ -1683,7 +1683,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestLinkBasic(t *testing.T) {
@@ -2226,7 +2226,7 @@ func renderLinkResult(r *shimmer.LinkResult) {
 }
 ```
 
-Note: Add `"github.com/siimpl/shimmer/internal/shimmer"` to the import.
+Note: Add `"github.com/myorg/shimmer/internal/shimmer"` to the import.
 
 **Step 6: Register in root command**
 
@@ -2266,7 +2266,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestUnlink(t *testing.T) {
@@ -2539,7 +2539,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestStatusAllOK(t *testing.T) {
@@ -2716,7 +2716,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 	"github.com/spf13/cobra"
 )
 
@@ -2886,7 +2886,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestGlobalLinkUnlink(t *testing.T) {
@@ -3025,7 +3025,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/myorg/shimmer/internal/shimmer"
 )
 
 func TestFullWorkflow(t *testing.T) {

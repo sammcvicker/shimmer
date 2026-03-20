@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/siimpl/shimmer/internal/shimmer"
+	"github.com/sammcvicker/shimmer/internal/shimmer"
 )
 
 func TestEject(t *testing.T) {

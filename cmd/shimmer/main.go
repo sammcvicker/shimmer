@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/siimpl/shimmer/internal/cmd"
+	"github.com/sammcvicker/shimmer/internal/cmd"
 )
 
 func main() {
