@@ -83,8 +83,8 @@ func (s *Shimmer) repoInfoFromSymlink(linkPath string) (*RepoInfo, error) {
 	}
 
 	// Extract owner/name from the path under ~/.shimmer/repos/<owner>/<name>/...
-	reposDir := filepath.Join(s.Home, "repos")
-	rel, err := filepath.Rel(reposDir, cloneRoot)
+	rp := s.ReposPath()
+	rel, err := filepath.Rel(rp, cloneRoot)
 	if err != nil {
 		return nil, err
 	}

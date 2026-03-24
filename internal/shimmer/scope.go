@@ -18,8 +18,12 @@ type Scope interface {
 	ClonePath(home, owner, repo string) string
 	MatchClone(targetSegment string) bool
 	SaveLinkState(paths []string) error
-	TrackedFiles(rels []string) map[string]bool
+}
+
+// GitAware is optionally implemented by scopes backed by a git repository.
+type GitAware interface {
 	SetSkipWorktree(rel string, set bool) error
+	TrackedFiles(rels []string) map[string]bool
 }
 
 // LocalScope operates against a single git repository.
@@ -36,12 +40,12 @@ func (l *LocalScope) IsGlobal() bool     { return false }
 func (l *LocalScope) ScopeLabel() string { return l.target }
 
 func (l *LocalScope) StashDir() string {
-	return filepath.Join(l.target, ".git", "shimmer-stash")
+	return filepath.Join(l.target, ".git", stashDir)
 }
 
 func (l *LocalScope) ClonePath(home, owner, repo string) string {
 	rel := strings.TrimPrefix(l.target, "/")
-	return filepath.Join(home, "repos", owner, repo, rel)
+	return filepath.Join(home, reposDir, owner, repo, rel)
 }
 
 func (l *LocalScope) MatchClone(targetSegment string) bool {
@@ -102,11 +106,11 @@ func (g *GlobalScope) StashDir() string {
 }
 
 func (g *GlobalScope) ClonePath(home, owner, repo string) string {
-	return filepath.Join(home, "repos", owner, repo, "_global")
+	return filepath.Join(home, reposDir, owner, repo, globalSegment)
 }
 
 func (g *GlobalScope) MatchClone(targetSegment string) bool {
-	return targetSegment == "_global"
+	return targetSegment == globalSegment
 }
 
 func (g *GlobalScope) SaveLinkState(paths []string) error {
@@ -120,10 +124,3 @@ func (g *GlobalScope) SaveLinkState(paths []string) error {
 	return os.WriteFile(file, []byte(strings.Join(paths, "\n")+"\n"), 0o644)
 }
 
-func (g *GlobalScope) TrackedFiles(rels []string) map[string]bool {
-	return nil // no git repo at $HOME
-}
-
-func (g *GlobalScope) SetSkipWorktree(rel string, set bool) error {
-	return nil // no-op for global scope
-}

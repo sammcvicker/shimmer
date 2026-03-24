@@ -38,7 +38,10 @@ func (s *Shimmer) Unlink() (int, error) {
 		rel, _ := filepath.Rel(target, link)
 		rels = append(rels, rel)
 	}
-	tracked := s.Scope.TrackedFiles(rels)
+	var tracked map[string]bool
+	if ga, ok := s.Scope.(GitAware); ok {
+		tracked = ga.TrackedFiles(rels)
+	}
 
 	// 2. For each symlink: remove it, clear skip-worktree, clean empty parents.
 	for _, link := range links {
@@ -50,12 +53,14 @@ func (s *Shimmer) Unlink() (int, error) {
 
 		// Only clear skip-worktree for files that are actually tracked.
 		if tracked[rel] {
-			if err := s.Scope.SetSkipWorktree(rel, false); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+			if ga, ok := s.Scope.(GitAware); ok {
+				if err := ga.SetSkipWorktree(rel, false); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+				}
 			}
 		}
 
-		s.cleanEmptyLinkParents(filepath.Dir(link))
+		cleanEmptyParents(filepath.Dir(link), s.Scope.Target())
 	}
 
 	// 3. Restore stashed files.
@@ -103,12 +108,26 @@ func (s *Shimmer) restoreStash() error {
 			return fmt.Errorf("creating parent dirs for %s: %w", rel, err)
 		}
 
-		// Remove any existing file/symlink at dest (the symlink we just removed
-		// should already be gone, but be safe).
-		_ = os.Remove(dest)
-
+		// Try to move the stashed file into place. os.Rename atomically
+		// replaces regular files and symlinks on POSIX, so this handles
+		// the common case (dest is a leftover shimmer symlink) safely.
 		if err := os.Rename(path, dest); err != nil {
-			return fmt.Errorf("restoring %s: %w", rel, err)
+			// If the rename failed and something still exists at dest,
+			// move it aside to a temp file, retry, and only delete the
+			// temp on success. This avoids losing the original if the
+			// second rename also fails.
+			tmp := dest + ".shimmer-tmp"
+			if renameErr := os.Rename(dest, tmp); renameErr != nil {
+				// dest either doesn't exist or can't be moved;
+				// return the original error as-is.
+				return fmt.Errorf("restoring %s: %w", rel, err)
+			}
+			if err := os.Rename(path, dest); err != nil {
+				// Restore the original from temp before failing.
+				_ = os.Rename(tmp, dest)
+				return fmt.Errorf("restoring %s: %w", rel, err)
+			}
+			_ = os.Remove(tmp)
 		}
 
 		return nil

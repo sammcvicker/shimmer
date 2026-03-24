@@ -50,31 +50,36 @@ func (s *Shimmer) RepoRemove() error {
 		return err
 	}
 
-	// Unlink before removing to clean up symlinks (ignore error — may not be linked).
-	_, _ = s.Unlink()
+	// Unlink before removing to clean up symlinks.
+	// ErrNotLinked is expected if the repo was never linked; all other errors are real.
+	if _, err := s.Unlink(); err != nil {
+		if _, ok := err.(*ErrNotLinked); !ok {
+			return fmt.Errorf("unlinking before removal: %w", err)
+		}
+	}
 	if err := os.RemoveAll(clone); err != nil {
 		return fmt.Errorf("removing clone: %w", err)
 	}
 
-	s.cleanEmptyParents(clone)
+	cleanEmptyParents(filepath.Dir(clone), s.ReposPath())
 	return nil
 }
 
 // RepoList walks ~/.shimmer/repos/ and returns info about all clones.
 func (s *Shimmer) RepoList() ([]RepoInfo, error) {
-	reposDir := filepath.Join(s.Home, "repos")
-	if _, err := os.Stat(reposDir); err != nil {
+	rp := s.ReposPath()
+	if _, err := os.Stat(rp); err != nil {
 		return nil, nil
 	}
 
 	var repos []RepoInfo
-	err := filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(rp, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.Name() == ".git" && d.IsDir() {
 			cloneDir := filepath.Dir(path)
-			rel, _ := filepath.Rel(reposDir, cloneDir)
+			rel, _ := filepath.Rel(rp, cloneDir)
 			segments := strings.SplitN(rel, string(os.PathSeparator), 3)
 			if len(segments) < 3 {
 				return nil
@@ -94,21 +99,21 @@ func (s *Shimmer) RepoList() ([]RepoInfo, error) {
 
 // findClone locates the clone directory for the current scope.
 func (s *Shimmer) findClone() (string, error) {
-	reposDir := filepath.Join(s.Home, "repos")
-	if _, err := os.Stat(reposDir); err != nil {
+	rp := s.ReposPath()
+	if _, err := os.Stat(rp); err != nil {
 		return "", &ErrNoRepo{ScopeLabel: s.Scope.ScopeLabel()}
 	}
 
 	var matches []string
 	var walkErr error
-	_ = filepath.WalkDir(reposDir, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(rp, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			walkErr = err
 			return filepath.SkipAll
 		}
 		if d.Name() == ".git" && d.IsDir() {
 			cloneDir := filepath.Dir(path)
-			rel, _ := filepath.Rel(reposDir, cloneDir)
+			rel, _ := filepath.Rel(rp, cloneDir)
 			segments := strings.SplitN(rel, string(os.PathSeparator), 3)
 			if len(segments) < 3 {
 				return nil
@@ -142,8 +147,8 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 	remote, _ := gitOutput(clonePath, "remote", "get-url", "origin")
 	branch, _ := gitOutput(clonePath, "rev-parse", "--abbrev-ref", "HEAD")
 
-	reposDir := filepath.Join(s.Home, "repos")
-	rel, _ := filepath.Rel(reposDir, clonePath)
+	rp := s.ReposPath()
+	rel, _ := filepath.Rel(rp, clonePath)
 	segments := strings.SplitN(rel, string(os.PathSeparator), 3)
 
 	targetSegment := ""
@@ -152,7 +157,7 @@ func (s *Shimmer) repoInfo(clonePath, owner, name string) (*RepoInfo, error) {
 	}
 
 	targetPath := ""
-	isGlobal := targetSegment == "_global"
+	isGlobal := targetSegment == globalSegment
 	if !isGlobal {
 		targetPath = "/" + targetSegment
 	}
@@ -201,16 +206,3 @@ func gitOutput(dir string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// cleanEmptyParents removes empty directories up the tree.
-func (s *Shimmer) cleanEmptyParents(path string) {
-	reposDir := filepath.Join(s.Home, "repos")
-	dir := filepath.Dir(path)
-	for dir != reposDir && isSubpath(dir, reposDir) {
-		entries, err := os.ReadDir(dir)
-		if err != nil || len(entries) > 0 {
-			break
-		}
-		os.Remove(dir)
-		dir = filepath.Dir(dir)
-	}
-}

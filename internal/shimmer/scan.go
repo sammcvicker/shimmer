@@ -9,7 +9,7 @@ import (
 // This walks the entire target directory tree — fine for project directories,
 // but use CheckSymlinks for large targets like $HOME.
 func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
-	reposDir := filepath.Join(shimmerHome, "repos")
+	reposDir := filepath.Join(shimmerHome, reposDir)
 	var links []string
 
 	err := filepath.WalkDir(targetDir, func(path string, d os.DirEntry, err error) error {
@@ -29,6 +29,7 @@ func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
 		if d.Type()&os.ModeSymlink != 0 {
 			target, err := os.Readlink(path)
 			if err != nil {
+				// Skip symlinks we can't read (e.g. permission denied, race with deletion).
 				return nil
 			}
 			target = absSymlinkTarget(path, target)
@@ -45,7 +46,7 @@ func ScanSymlinks(targetDir, shimmerHome string) ([]string, error) {
 // pointing into shimmerHome/repos/. Much faster than ScanSymlinks when the
 // target directory is large (e.g. $HOME) and the set of possible paths is known.
 func CheckSymlinks(targetDir string, relPaths []string, shimmerHome string) ([]string, error) {
-	reposDir := filepath.Join(shimmerHome, "repos")
+	reposDir := filepath.Join(shimmerHome, reposDir)
 	var links []string
 
 	for _, rel := range relPaths {

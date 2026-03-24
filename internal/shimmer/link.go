@@ -8,16 +8,20 @@ import (
 	"strings"
 )
 
-// Link reconciles symlinks between the overlay clone and the target.
-// skip: skip conflicting files. overwrite: stash and shadow conflicting files.
-// Uses a diff-based approach: only creates/removes symlinks that actually changed,
-// avoiding unnecessary filesystem churn on re-link.
-func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
-	clonePath, err := s.findClone()
-	if err != nil {
-		return nil, err
-	}
+// linkPlan holds the computed diff between desired and existing symlinks.
+type linkPlan struct {
+	target       string
+	overlayFiles []string            // ordered list of relative paths from overlay
+	desiredSet   map[string]string   // rel -> absolute source path
+	existingByRel map[string]string  // rel -> absolute link path in target
+	alreadyCurrent map[string]bool   // rel paths that already point to the correct source
+	conflicts    []Conflict          // files that conflict with non-shimmer content
+	conflictSet  map[string]Conflict // same, keyed by rel for fast lookup
+	staleLinks   []string            // rel paths of links to remove
+}
 
+// planLinks computes what needs to be added, removed, or resolved before linking.
+func (s *Shimmer) planLinks(clonePath string) (*linkPlan, error) {
 	existing, err := s.findShimmerLinks()
 	if err != nil {
 		return nil, fmt.Errorf("scanning existing links: %w", err)
@@ -31,27 +35,22 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 	target := s.Scope.Target()
 
 	// Build sets for diff computation.
-	desiredSet := make(map[string]string, len(overlayFiles)) // rel -> src
+	desiredSet := make(map[string]string, len(overlayFiles))
 	for _, rel := range overlayFiles {
 		desiredSet[rel] = filepath.Join(clonePath, rel)
 	}
 
-	existingByRel := make(map[string]string, len(existing)) // rel -> linkPath
+	existingByRel := make(map[string]string, len(existing))
 	for _, link := range existing {
 		rel, _ := filepath.Rel(target, link)
 		existingByRel[rel] = link
 	}
 
-	result := &LinkResult{}
-
-	// Remove stale links (exist but not desired).
-	for rel, link := range existingByRel {
+	// Find stale links (exist but not desired).
+	var staleLinks []string
+	for rel := range existingByRel {
 		if _, desired := desiredSet[rel]; !desired {
-			if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
-				return nil, fmt.Errorf("removing stale link %s: %w", link, err)
-			}
-			result.Removed = append(result.Removed, rel)
-			s.cleanEmptyLinkParents(filepath.Dir(link))
+			staleLinks = append(staleLinks, rel)
 		}
 	}
 
@@ -71,10 +70,9 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 
 	// Check for conflicts among files that need creating.
 	var conflictRels []string
-	conflictSet := make(map[string]Conflict)
 	for _, rel := range overlayFiles {
 		if alreadyCurrent[rel] {
-			continue // already correctly linked
+			continue
 		}
 		dest := filepath.Join(target, rel)
 		info, err := os.Lstat(dest)
@@ -88,8 +86,7 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			linkTarget, linkErr := os.Readlink(dest)
 			if linkErr == nil {
 				linkTarget = absSymlinkTarget(dest, linkTarget)
-				reposDir := filepath.Join(s.Home, "repos")
-				if isSubpath(linkTarget, reposDir) {
+				if isSubpath(linkTarget, s.ReposPath()) {
 					// Stale shimmer link with wrong target — remove it.
 					os.Remove(dest)
 					continue
@@ -99,29 +96,55 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 		conflictRels = append(conflictRels, rel)
 	}
 
-	tracked := s.Scope.TrackedFiles(conflictRels)
-	var conflicts []Conflict
+	var tracked map[string]bool
+	if ga, ok := s.Scope.(GitAware); ok {
+		tracked = ga.TrackedFiles(conflictRels)
+	}
+	conflictSet := make(map[string]Conflict, len(conflictRels))
+	conflicts := make([]Conflict, 0, len(conflictRels))
 	for _, rel := range conflictRels {
 		c := Conflict{Path: rel, Tracked: tracked[rel]}
 		conflicts = append(conflicts, c)
 		conflictSet[rel] = c
 	}
 
-	if len(conflicts) > 0 && !skip && !overwrite {
-		return nil, &ErrConflicts{Conflicts: conflicts}
+	return &linkPlan{
+		target:         target,
+		overlayFiles:   overlayFiles,
+		desiredSet:     desiredSet,
+		existingByRel:  existingByRel,
+		alreadyCurrent: alreadyCurrent,
+		conflicts:      conflicts,
+		conflictSet:    conflictSet,
+		staleLinks:     staleLinks,
+	}, nil
+}
+
+// executeLinks applies the plan: removes stale links, resolves conflicts, and creates new symlinks.
+func (s *Shimmer) executeLinks(plan *linkPlan, skip, overwrite bool) (*LinkResult, error) {
+	result := &LinkResult{}
+
+	// Remove stale links.
+	for _, rel := range plan.staleLinks {
+		link := plan.existingByRel[rel]
+		if err := os.Remove(link); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("removing stale link %s: %w", link, err)
+		}
+		result.Removed = append(result.Removed, rel)
+		cleanEmptyParents(filepath.Dir(link), plan.target)
 	}
 
 	// Create symlinks for files that need it.
-	for _, rel := range overlayFiles {
-		if alreadyCurrent[rel] {
+	for _, rel := range plan.overlayFiles {
+		if plan.alreadyCurrent[rel] {
 			result.Linked = append(result.Linked, rel)
 			continue
 		}
 
-		dest := filepath.Join(target, rel)
-		src := desiredSet[rel]
+		dest := filepath.Join(plan.target, rel)
+		src := plan.desiredSet[rel]
 
-		if c, ok := conflictSet[rel]; ok {
+		if c, ok := plan.conflictSet[rel]; ok {
 			if skip {
 				result.Skipped = append(result.Skipped, rel)
 				continue
@@ -132,8 +155,10 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 				}
 				result.Stashed = append(result.Stashed, rel)
 				if c.Tracked {
-					if err := s.Scope.SetSkipWorktree(rel, true); err != nil {
-						fmt.Fprintf(os.Stderr, "warning: could not set skip-worktree for %s: %v\n", rel, err)
+					if ga, ok := s.Scope.(GitAware); ok {
+						if err := ga.SetSkipWorktree(rel, true); err != nil {
+							fmt.Fprintf(os.Stderr, "warning: could not set skip-worktree for %s: %v\n", rel, err)
+						}
 					}
 				}
 			}
@@ -147,6 +172,33 @@ func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
 			return nil, fmt.Errorf("creating symlink %s: %w", rel, err)
 		}
 		result.Linked = append(result.Linked, rel)
+	}
+
+	return result, nil
+}
+
+// Link reconciles symlinks between the overlay clone and the target.
+// skip: skip conflicting files. overwrite: stash and shadow conflicting files.
+// Uses a diff-based approach: only creates/removes symlinks that actually changed,
+// avoiding unnecessary filesystem churn on re-link.
+func (s *Shimmer) Link(skip, overwrite bool) (*LinkResult, error) {
+	clonePath, err := s.findClone()
+	if err != nil {
+		return nil, err
+	}
+
+	plan, err := s.planLinks(clonePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(plan.conflicts) > 0 && !skip && !overwrite {
+		return nil, &ErrConflicts{Conflicts: plan.conflicts}
+	}
+
+	result, err := s.executeLinks(plan, skip, overwrite)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := s.Scope.SaveLinkState(result.Linked); err != nil {
@@ -186,14 +238,11 @@ func updateGitExclude(target string, linkedPaths []string) error {
 	content := string(existing)
 
 	// Remove old shimmer block if present.
-	const startMarker = "# shimmer managed — do not edit"
-	const endMarker = "# end shimmer"
-
-	startIdx := strings.Index(content, startMarker)
+	startIdx := strings.Index(content, excludeMarkerStart)
 	if startIdx >= 0 {
-		endIdx := strings.Index(content, endMarker)
+		endIdx := strings.Index(content, excludeMarkerEnd)
 		if endIdx >= 0 {
-			endIdx += len(endMarker)
+			endIdx += len(excludeMarkerEnd)
 			// Also consume the trailing newline if present.
 			if endIdx < len(content) && content[endIdx] == '\n' {
 				endIdx++
@@ -208,7 +257,7 @@ func updateGitExclude(target string, linkedPaths []string) error {
 	// Build the shimmer block.
 	if len(linkedPaths) > 0 {
 		var block strings.Builder
-		block.WriteString(startMarker)
+		block.WriteString(excludeMarkerStart)
 		block.WriteString("\n")
 		sorted := make([]string, len(linkedPaths))
 		copy(sorted, linkedPaths)
@@ -218,7 +267,7 @@ func updateGitExclude(target string, linkedPaths []string) error {
 			block.WriteString(p)
 			block.WriteString("\n")
 		}
-		block.WriteString(endMarker)
+		block.WriteString(excludeMarkerEnd)
 
 		if content != "" {
 			content += "\n\n"
@@ -231,16 +280,4 @@ func updateGitExclude(target string, linkedPaths []string) error {
 	return os.WriteFile(excludePath, []byte(content), 0o644)
 }
 
-// cleanEmptyLinkParents removes empty directories up to the target root.
-func (s *Shimmer) cleanEmptyLinkParents(dir string) {
-	target := s.Scope.Target()
-	for dir != target && isSubpath(dir, target) {
-		entries, err := os.ReadDir(dir)
-		if err != nil || len(entries) > 0 {
-			break
-		}
-		os.Remove(dir)
-		dir = filepath.Dir(dir)
-	}
-}
 

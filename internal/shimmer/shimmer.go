@@ -6,6 +6,24 @@ import (
 	"path/filepath"
 )
 
+
+const (
+	// globalSegment is the path segment used for global-scope clones.
+	globalSegment = "_global"
+
+	// stashDir is the directory name under .git/ for stashed files.
+	stashDir = "shimmer-stash"
+
+	// excludeMarkerStart begins the shimmer-managed block in .git/info/exclude.
+	excludeMarkerStart = "# shimmer managed — do not edit"
+
+	// excludeMarkerEnd ends the shimmer-managed block in .git/info/exclude.
+	excludeMarkerEnd = "# end shimmer"
+
+	// reposDir is the directory name under ~/.shimmer/ for cloned repos.
+	reposDir = "repos"
+)
+
 // Shimmer is the central context for any operation.
 type Shimmer struct {
 	Home  string // ~/.shimmer
@@ -73,4 +91,23 @@ type LinkStatus struct {
 	Repo    RepoInfo
 	Files   []FileStatus
 	Stashed []string
+}
+
+// ReposPath returns the absolute path to the repos directory (~/.shimmer/repos).
+func (s *Shimmer) ReposPath() string {
+	return filepath.Join(s.Home, reposDir)
+}
+
+// cleanEmptyParents removes empty directories starting at dir, walking up the
+// tree until it reaches stopAt (exclusive). It stops early if a directory is
+// non-empty or cannot be read.
+func cleanEmptyParents(dir, stopAt string) {
+	for dir != stopAt && isSubpath(dir, stopAt) {
+		entries, err := os.ReadDir(dir)
+		if err != nil || len(entries) > 0 {
+			break
+		}
+		os.Remove(dir)
+		dir = filepath.Dir(dir)
+	}
 }

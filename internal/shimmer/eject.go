@@ -55,8 +55,15 @@ func (s *Shimmer) Eject() (*EjectResult, error) {
 		}
 		rel, _ := filepath.Rel(target, link)
 
-		// Clear skip-worktree so git sees the real file again (no-op for global scope).
-		_ = s.Scope.SetSkipWorktree(rel, false)
+		// Clear skip-worktree so git sees the real file again.
+		// For local scope, failure is non-fatal: the file has already been
+		// ejected, and the user can manually run
+		// "git update-index --no-skip-worktree" if needed.
+		if ga, ok := s.Scope.(GitAware); ok {
+			if err := ga.SetSkipWorktree(rel, false); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not clear skip-worktree for %s: %v\n", rel, err)
+			}
+		}
 
 		result.Ejected = append(result.Ejected, rel)
 	}
