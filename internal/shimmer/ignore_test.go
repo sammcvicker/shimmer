@@ -94,6 +94,57 @@ func TestIgnorePathSeparatorSemantics(t *testing.T) {
 	assertIgnored(t, ignore, "other/docs", false) // "docs/" pattern doesn't match base name
 }
 
+func TestIgnoreLeadingSlashAnchorsToRoot(t *testing.T) {
+	dir := t.TempDir()
+	content := "/CLAUDE.md\n/docs/\n/build\n"
+	if err := os.WriteFile(filepath.Join(dir, ".shimmerignore"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ignore, err := shimmer.ParseShimmerignore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// "/CLAUDE.md" matches only the root-level file
+	assertIgnored(t, ignore, "CLAUDE.md", true)
+	assertIgnored(t, ignore, "nested/CLAUDE.md", false)
+	assertIgnored(t, ignore, "dhi/CLAUDE.md", false)
+
+	// "/docs/" matches the root-level directory and its contents
+	assertIgnored(t, ignore, "docs", true)
+	assertIgnored(t, ignore, "docs/file.md", true)
+	assertIgnored(t, ignore, "nested/docs", false)
+	assertIgnored(t, ignore, "nested/docs/file.md", false)
+
+	// "/build" matches as a root-anchored prefix (file or directory)
+	assertIgnored(t, ignore, "build", true)
+	assertIgnored(t, ignore, "build/output", true)
+	assertIgnored(t, ignore, "nested/build", false)
+}
+
+func TestIgnoreLeadingSlashCoexistsWithBaseNamePatterns(t *testing.T) {
+	dir := t.TempDir()
+	// /CLAUDE.md is root-anchored; LICENSE is unanchored (base-name match anywhere).
+	content := "/CLAUDE.md\nLICENSE\n"
+	if err := os.WriteFile(filepath.Join(dir, ".shimmerignore"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ignore, err := shimmer.ParseShimmerignore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Root-anchored pattern unaffected by deeper path
+	assertIgnored(t, ignore, "CLAUDE.md", true)
+	assertIgnored(t, ignore, "dhi/CLAUDE.md", false)
+
+	// Unanchored pattern still matches by base name at any depth
+	assertIgnored(t, ignore, "LICENSE", true)
+	assertIgnored(t, ignore, "vendor/foo/LICENSE", true)
+}
+
 func assertIgnored(t *testing.T, ignore *shimmer.Ignore, path string, want bool) {
 	t.Helper()
 	if got := ignore.Match(path); got != want {
