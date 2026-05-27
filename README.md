@@ -30,7 +30,7 @@ Shimmer is tool-agnostic — it doesn't know or care what files it's overlaying.
 Requires Go 1.25+ and `git`.
 
 ```bash
-go install github.com/sammcvicker/shimmer/cmd/shimmer@latest
+go install github.com/sammcvicker/shimmer@latest
 ```
 
 Or build from source:
