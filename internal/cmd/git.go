@@ -11,8 +11,9 @@ func newGitCmd() *cobra.Command {
 		Long:               "Run git commands against the overlay repo clone.\n\nThe -g/--global flag can be placed before or after 'git'.",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			global, gitArgs := extractGlobalFlag(args)
-			s, err := newShimmerWithGlobal(global)
+			globalFromArgs, gitArgs := extractGlobalFlag(args)
+			globalFromRoot, _ := cmd.Root().PersistentFlags().GetBool("global")
+			s, err := newShimmerWithGlobal(globalFromArgs || globalFromRoot)
 			if err != nil {
 				return renderError(err)
 			}
