@@ -58,9 +58,18 @@ func (ig *Ignore) Match(path string) bool {
 		clean := strings.TrimSuffix(pattern, "/")
 		hasDirSlash := strings.HasSuffix(pattern, "/")
 
-		// If pattern contains a slash (after trimming trailing /),
-		// match against full path only.
-		if strings.Contains(clean, "/") {
+		// A leading slash anchors the pattern to the overlay root.
+		// Strip it; treat the remainder as a path-relative pattern.
+		// Per gitignore semantics, this distinguishes "/CLAUDE.md"
+		// (root only) from "CLAUDE.md" (any depth, base-name match).
+		rootAnchored := strings.HasPrefix(clean, "/")
+		if rootAnchored {
+			clean = clean[1:]
+		}
+
+		// Root-anchored patterns and patterns with an internal slash
+		// both match against the full path only (not base name).
+		if rootAnchored || strings.Contains(clean, "/") {
 			if matched, _ := filepath.Match(clean, path); matched {
 				return true
 			}
